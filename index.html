@@ -2092,6 +2092,37 @@
                         <button onclick="window.cetakLabelMejaView()" class="w-full py-2.5 mt-2 gradient-btn text-white font-bold rounded-xl text-[10px] uppercase tracking-wider shadow-lg"><i class="fa-solid fa-print mr-2"></i> Cetak Label Meja</button>
                     </div>
                 `;
+            } else if (tab === 'pintu') {
+                const ruanganP = [...new Set(window.appData.peserta.map(p => p.ruang).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'id', { numeric: true }));
+                const ruangOptsP = ruanganP.length ? `<option value="semua">Semua Ruang</option>` + ruanganP.map(r => `<option value="${r}">${r}</option>`).join('') : `<option value="">Belum ada ruang diatur</option>`;
+                const lb = 'block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1', sl = 'w-full p-2.5 glass-input rounded-xl text-[11px] bg-slate-900';
+                const nf = (id, label, v, mn, mx, st) => `<div><label class="${lb}">${label}</label><input type="number" id="${id}" min="${mn}" max="${mx}" step="${st || 1}" value="${v}" class="${sl}"></div>`;
+                tabContent = `
+                    <div class="glass-card-dark p-6 rounded-3xl border border-slate-800 max-w-2xl space-y-4 mt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="${lb}">Pilih Ruang Ujian</label><select id="pt-ruang" class="${sl}">${ruangOptsP}</select></div>
+                            <div><label class="${lb}">Orientasi Kertas (A4)</label><select id="pt-orient" class="${sl}"><option value="landscape" selected>Landscape (mendatar)</option><option value="portrait">Portrait (tegak)</option></select></div>
+                        </div>
+                        <div><label class="${lb}">Judul Kegiatan (baris 1)</label><input type="text" id="pt-judul" value="SUMATIF AKHIR SEMESTER (SAS) GANJIL" class="${sl}"></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="${lb}">Posisi Nomor Ruang</label><select id="pt-posisi" class="${sl}"><option value="atas" selected>Paling atas</option><option value="tengah">Di bawah logo</option><option value="bawah">Paling bawah</option></select></div>
+                            <div><label class="${lb}">Gaya Garis Tepi</label><select id="pt-gaya" class="${sl}"><option value="solid" selected>Garis tunggal</option><option value="double">Garis ganda</option></select></div>
+                        </div>
+                        <div class="text-[9px] font-bold text-indigo-300 uppercase tracking-widest pt-1"><i class="fa-solid fa-text-height mr-1"></i>Ukuran Font (pt)</div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            ${nf('pt-f-ruang', 'Nomor Ruang', 96, 20, 250)}${nf('pt-f-judul', 'Judul Kegiatan', 26, 8, 80)}${nf('pt-f-sekolah', 'Nama Sekolah', 30, 8, 80)}${nf('pt-f-tahun', 'Tahun Ajaran', 22, 8, 80)}
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            ${nf('pt-logo', 'Ukuran Logo (mm)', 40, 10, 120)}${nf('pt-border', 'Tebal Garis Tepi (mm)', 2.5, 0.5, 10, 0.5)}${nf('pt-jarak', 'Jarak Antar Teks (mm)', 5, 0, 30, 0.5)}
+                        </div>
+                        <div class="text-[9px] font-bold text-indigo-300 uppercase tracking-widest pt-1"><i class="fa-solid fa-ruler-combined mr-1"></i>Margin: Jarak Garis Tepi dari Tepi Kertas (mm)</div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            ${nf('pt-m-atas', 'Atas', 10, 0, 60, 0.5)}${nf('pt-m-bawah', 'Bawah', 10, 0, 60, 0.5)}${nf('pt-m-kiri', 'Kiri', 10, 0, 60, 0.5)}${nf('pt-m-kanan', 'Kanan', 10, 0, 60, 0.5)}
+                        </div>
+                        <p class="text-[9px] text-slate-500 font-medium"><i class="fa-solid fa-circle-info mr-1"></i>Satu ruang dicetak satu halaman. Urutan tulisan: judul kegiatan, nama sekolah, logo sekolah, lalu Tahun Ajaran (dari menu Profil & Kepanitiaan), dengan nomor ruang di posisi yang dipilih. Logo diambil dari Profil & Kepanitiaan. Saat mencetak pilih skala <b>100%</b> dan Margins <b>Default</b> atau None.</p>
+                        <button onclick="window.cetakPintuView()" class="w-full py-2.5 mt-2 gradient-btn text-white font-bold rounded-xl text-[10px] uppercase tracking-wider shadow-lg"><i class="fa-solid fa-print mr-2"></i> Cetak Nomor Pintu</button>
+                    </div>
+                `;
             } else {
                 tabContent = `
                     <div class="glass-card-dark p-6 rounded-3xl border border-slate-800 max-w-2xl space-y-4 mt-4">
@@ -2122,6 +2153,7 @@
                     <button onclick="window.loadRuangDanKartu('ruang')" class="px-4 py-2 rounded-lg tracking-wider text-[10px] transition ${tab==='ruang'?'bg-indigo-600 text-white shadow-lg':'bg-slate-900 text-slate-400 hover:text-white'}">Daftar Ruang</button>
                     <button onclick="window.loadRuangDanKartu('kartu')" class="px-4 py-2 rounded-lg tracking-wider text-[10px] transition ${tab==='kartu'?'bg-indigo-600 text-white shadow-lg':'bg-slate-900 text-slate-400 hover:text-white'}">Kartu Peserta</button>
                     <button onclick="window.loadRuangDanKartu('meja')" class="px-4 py-2 rounded-lg tracking-wider text-[10px] transition ${tab==='meja'?'bg-indigo-600 text-white shadow-lg':'bg-slate-900 text-slate-400 hover:text-white'}">Meja</button>
+                    <button onclick="window.loadRuangDanKartu('pintu')" class="px-4 py-2 rounded-lg tracking-wider text-[10px] transition ${tab==='pintu'?'bg-indigo-600 text-white shadow-lg':'bg-slate-900 text-slate-400 hover:text-white'}">Pintu</button>
                 </div>
                 ${tabContent}
             `;
@@ -2178,6 +2210,44 @@
                 .lbl-info{font-size:9pt;line-height:1.2;white-space:nowrap}`;
             const w = window.open('', '_blank'); if (!w) return window.showNotification('Pop-up diblokir browser.');
             w.document.write(`<html><head><title>${undangan ? 'Label Undangan' : 'Label Meja'}</title><style>${css}</style></head><body>${pages}<script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
+            w.document.close();
+        };
+
+        /* Nomor ruang pada pintu: satu ruang satu halaman A4, dengan garis tepi */
+        window.cetakPintuView = function() {
+            const num = (id, d, lo, hi) => { const v = parseFloat(document.getElementById(id).value); return Math.min(hi, Math.max(lo, isNaN(v) ? d : v)); };
+            const E = window.escHtml, gs = window.globalSettings || {};
+            const rg = document.getElementById('pt-ruang').value;
+            const rooms = [...new Set(window.appData.peserta.map(p => p.ruang).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'id', { numeric: true })).filter(r => rg === 'semua' || r === rg);
+            if (!rooms.length) return window.showNotification('Belum ada ruang. Atur ruang siswa di menu Data Siswa terlebih dahulu!');
+            const land = document.getElementById('pt-orient').value !== 'portrait';
+            const W = land ? 297 : 210, H = land ? 210 : 297;
+            const fRuang = num('pt-f-ruang', 96, 20, 250), fJudul = num('pt-f-judul', 26, 8, 80), fSek = num('pt-f-sekolah', 30, 8, 80), fThn = num('pt-f-tahun', 22, 8, 80);
+            const logoMm = num('pt-logo', 40, 10, 120), bw = num('pt-border', 2.5, 0.5, 10), gap = num('pt-jarak', 5, 0, 30);
+            const mt = num('pt-m-atas', 10, 0, 60), mb = num('pt-m-bawah', 10, 0, 60), ml = num('pt-m-kiri', 10, 0, 60), mr = num('pt-m-kanan', 10, 0, 60);
+            const gaya = document.getElementById('pt-gaya').value === 'double' ? 'double' : 'solid', posisi = document.getElementById('pt-posisi').value;
+            const judul = E(document.getElementById('pt-judul').value || ''), sekolah = E(String(gs.namaSekolah || '').toUpperCase()), tahun = E(String(gs.tahunPelajaran || '').toUpperCase());
+            const logo = gs.logoUrl ? `<img class="logo" src="${E(gs.logoUrl)}">` : '';
+            let pages = '';
+            rooms.forEach(r => {
+                const items = [`<div class="judul">${judul}</div>`, `<div class="sekolah">${sekolah}</div>`, logo, `<div class="tahun">TAHUN AJARAN ${tahun}</div>`];
+                const ruang = `<div class="ruang">${E(String(r).toUpperCase())}</div>`;
+                if (posisi === 'atas') items.unshift(ruang); else if (posisi === 'tengah') items.splice(3, 0, ruang); else items.push(ruang);
+                pages += `<div class="page"><div class="frame">${items.join('')}</div></div>`;
+            });
+            const css = `@page{size:${W}mm ${H}mm;margin:0}
+                html,body{margin:0;padding:0}
+                body{font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+                .page{width:${W}mm;height:${H - 1}mm;position:relative;overflow:hidden;page-break-after:always}
+                .page:last-child{page-break-after:auto}
+                .frame{position:absolute;top:${mt}mm;bottom:${Math.max(0, mb - 1)}mm;left:${ml}mm;right:${mr}mm;border:${bw}mm ${gaya} #000;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${gap}mm;text-align:center;padding:5mm}
+                .judul{font-size:${fJudul}pt;font-weight:bold;line-height:1.15}
+                .sekolah{font-size:${fSek}pt;font-weight:bold;line-height:1.15}
+                .tahun{font-size:${fThn}pt;font-weight:bold;line-height:1.15}
+                .ruang{font-size:${fRuang}pt;font-weight:bold;line-height:1.05;letter-spacing:1mm}
+                .logo{height:${logoMm}mm;width:auto;max-width:100%;object-fit:contain}`;
+            const w = window.open('', '_blank'); if (!w) return window.showNotification('Pop-up diblokir browser.');
+            w.document.write(`<html><head><title>Nomor Pintu Ruang</title><style>${css}</style></head><body>${pages}<script>window.onload=function(){setTimeout(function(){window.print();},500);};<\/script></body></html>`);
             w.document.close();
         };
 
