@@ -327,6 +327,18 @@
         /* ===== BATAS SOAL PER MAPEL ===== */
         /* Batas folder = maksimal TOTAL SKOR per mapel (per kelas), bukan jumlah butir. Bawaan 100; dapat diubah di Bank Soal. */
         Object.defineProperty(window, 'MAKS_SKOR_PER_MAPEL', { get: function() { const v = parseInt(window.globalSettings && window.globalSettings.maksSkor); return v > 0 ? v : 100; } });
+        /* Kunci PG / PG kompleks dinormalkan jadi huruf A-D unik, terurut. "A, C", "AC", "a;c", "A dan C" => ["A","C"] */
+        window.kunciList = function(kunci) {
+            const out = [];
+            String(kunci == null ? '' : kunci).toUpperCase().split(/[^A-Z]+/).forEach(tok => { if (/^[A-D]{1,4}$/.test(tok)) tok.split('').forEach(ch => { if (!out.includes(ch)) out.push(ch); }); });
+            return out.sort();
+        };
+        window.normalisasiJenisSoal = function(j) {
+            const s = String(j || 'PG').toUpperCase().replace(/[^A-Z/]+/g, '');
+            if (s === 'PGK' || s.includes('KOMPLEKS')) return 'PGK';
+            if (s === 'BS' || s === 'B/S' || s.includes('BENARSALAH')) return 'BS';
+            return s || 'PG';
+        };
         window.skorSoal = function(x) { return parseInt(x && x.skor) || 2; };
         window.hitungSkorFolder = function(tingkat, mapel, exceptId) {
             return (window.appData.soal || []).filter(x => String(x.tingkat) === String(tingkat) && x.mapel === mapel && x.id !== exceptId).reduce((a, x) => a + window.skorSoal(x), 0);
@@ -1120,7 +1132,7 @@
 
         window.openEditSoalModal = function(id) {
             const s = window.appData.soal.find(x => String(x.id) === String(id)); if(!s) return;
-            const jenis = s.jenis || 'PG'; const kArr = (s.kunci || 'A').split(',');
+            const jenis = s.jenis || 'PG'; const kArr = jenis === 'BS' ? (s.kunci || 'A').split(',') : window.kunciList(s.kunci || 'A');
             let modal = document.getElementById('app-modal'); if (!modal) { modal = document.createElement('div'); modal.id = 'app-modal'; document.body.appendChild(modal); }
             modal.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-md';
             modal.innerHTML = `
@@ -1161,7 +1173,7 @@
 
         window.viewSoalModal = function(id) {
             const s = window.appData.soal.find(x => String(x.id) === String(id)); if (!s) return;
-            const kArr = (s.kunci || 'A').split(',');
+            const kArr = s.jenis === 'BS' ? (s.kunci || 'A').split(',') : window.kunciList(s.kunci || 'A');
             let modal = document.getElementById('app-modal'); if (!modal) { modal = document.createElement('div'); modal.id = 'app-modal'; document.body.appendChild(modal); }
             modal.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-md';
             modal.innerHTML = `
@@ -1200,7 +1212,7 @@
                         
                         const newSoal = { 
                             id: window.generateId(), 
-                            jenis: String(rowData.jenis||'PG').toUpperCase(), 
+                            jenis: window.normalisasiJenisSoal(rowData.jenis), 
                             tingkat: String(rowData.tingkat||'7').trim(), 
                             mapel: window.normalisasiMapel(rowData.mapel||'Umum'), 
                             pertanyaan: pertanyaan, 
@@ -1208,7 +1220,7 @@
                             pilihan_b: String(rowData.pilihan_b||''), 
                             pilihan_c: String(rowData.pilihan_c||''), 
                             pilihan_d: String(rowData.pilihan_d||''), 
-                            kunci: String(rowData.kunci||'A').toUpperCase(), 
+                            kunci: window.normalisasiJenisSoal(rowData.jenis) === 'PGK' ? (window.kunciList(rowData.kunci || 'A').join(',') || 'A') : String(rowData.kunci||'A').toUpperCase().trim(), 
                             skor: parseInt(rowData.skor||2) 
                         };
                         if (window.hitungSkorFolder(newSoal.tingkat, newSoal.mapel) + window.skorSoal(newSoal) > window.MAKS_SKOR_PER_MAPEL) { skipped++; skippedFolders.add(`${newSoal.mapel} (Kls ${newSoal.tingkat})`); continue; }
@@ -3403,7 +3415,7 @@
             window.examQuestions.forEach(q => {
                 const s = window.studentAnswers[q.id]; const sk = parseInt(q.skor||2); max += sk;
                 if (q.jenis === 'PGK') {
-                    const kArr = (q.kunci||'').split(',').sort().join(',');
+                    const kArr = window.kunciList(q.kunci).join(',');
                     const sArr = (Array.isArray(s) ? s : []).sort().join(',');
                     if (kArr === sArr && kArr !== '') score += sk;
                 } else {
