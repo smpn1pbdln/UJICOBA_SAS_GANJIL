@@ -629,7 +629,7 @@
                 html += createNavLink('nav-kartu', 'fa-id-card', 'Ruang, Kartu & Meja');
                 html += createNavLink('nav-nilai', 'fa-square-poll-vertical', 'Rekap Nilai');
                 html += createNavLink('nav-ba', 'fa-file-signature', 'Berita Acara');
-                html += createNavLink('nav-pengaturan-sekolah', 'fa-school', 'Profil & Kepanitiaan');
+                html += createNavLink('nav-pengaturan-sekolah', 'fa-school', 'Profil & KOP');
                 html += createNavLink('nav-panduan', 'fa-circle-question', 'Tips & Panduan');
                 html += createNavLink('nav-supabase', 'fa-database', 'Konfigurasi Server');
             } else {
@@ -2141,7 +2141,7 @@
             let thead = `<tr><th width="7%">No</th><th width="34%">Nama Panitia</th><th width="20%">Jabatan</th><th colspan="2" width="29%">Tanda Tangan</th><th width="10%">Keterangan</th></tr>`;
             let tbody = '';
             
-            // Penanggung Jawab + seluruh susunan panitia dari Profil & Kepanitiaan (Ketua, Sekretaris, Bendahara, Proktor I-II, Anggota I-III)
+            // Penanggung Jawab + susunan panitia yang tersimpan (Ketua, Sekretaris, Bendahara, Proktor I-II, Anggota I-III)
             const pn = window.getPanitia(), E = window.escHtml;
             const panitiaList = [{ nama: window.globalSettings.namaKasek, jabatan: 'Penanggung Jawab' }].concat(
                 window.PANITIA_ROLES.map(([k, label]) => ({ nama: (pn[k] || {}).nama, jabatan: k === 'ketua' ? 'Ketua Panitia' : label }))
@@ -2305,7 +2305,7 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             ${nf('pt-m-atas', 'Atas', 10, 0, 60, 0.5)}${nf('pt-m-bawah', 'Bawah', 10, 0, 60, 0.5)}${nf('pt-m-kiri', 'Kiri', 10, 0, 60, 0.5)}${nf('pt-m-kanan', 'Kanan', 10, 0, 60, 0.5)}
                         </div>
-                        <p class="text-[9px] text-slate-500 font-medium"><i class="fa-solid fa-circle-info mr-1"></i>Satu ruang dicetak satu halaman. Urutan tulisan: judul kegiatan, nama sekolah, logo sekolah, lalu Tahun Ajaran (dari menu Profil & Kepanitiaan), dengan nomor ruang di posisi yang dipilih. Logo diambil dari Profil & Kepanitiaan. Saat mencetak pilih skala <b>100%</b> dan Margins <b>Default</b> atau None.</p>
+                        <p class="text-[9px] text-slate-500 font-medium"><i class="fa-solid fa-circle-info mr-1"></i>Satu ruang dicetak satu halaman. Urutan tulisan: judul kegiatan, nama sekolah, logo sekolah, lalu Tahun Ajaran (dari menu Profil & KOP), dengan nomor ruang di posisi yang dipilih. Logo diambil dari Profil & KOP. Saat mencetak pilih skala <b>100%</b> dan Margins <b>Default</b> atau None.</p>
                         <button onclick="window.cetakPintuView()" class="w-full py-2.5 mt-2 gradient-btn text-white font-bold rounded-xl text-[10px] uppercase tracking-wider shadow-lg"><i class="fa-solid fa-print mr-2"></i> Cetak Nomor Pintu</button>
                     </div>
                 `;
@@ -3016,10 +3016,8 @@
 
         window.loadPengaturanSekolahDanPejabat = function(tab = 'profil') {
             window.currentRoute = 'pengaturan-sekolah'; const container = document.getElementById('content-container');
-            if (tab === 'panitia') return window.renderKepanitiaan(container);
             container.innerHTML = `
-                <div class="mb-6"><h1 class="text-2xl font-black text-white font-heading tracking-tight">Profil & Kepanitiaan</h1></div>
-                ${window.profilTabsHtml('profil')}
+                <div class="mb-6"><h1 class="text-2xl font-black text-white font-heading tracking-tight">Profil & KOP</h1></div>
                 <div class="glass-card-dark p-6 rounded-3xl border border-slate-800 max-w-2xl space-y-4">
                     <form onsubmit="window.simpanProfil(event)" class="space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3062,7 +3060,7 @@
                             <div class="grid grid-cols-2 gap-3"><div><label class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margin Kiri KOP (mm)</label><input type="number" min="0" max="40" step="1" id="pr-kopkiri" value="${window.globalSettings.kopMarginKiri || 0}" class="w-full p-2.5 glass-input rounded-xl text-[11px]"></div><div><label class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margin Kanan KOP (mm)</label><input type="number" min="0" max="40" step="1" id="pr-kopkanan" value="${window.globalSettings.kopMarginKanan || 0}" class="w-full p-2.5 glass-input rounded-xl text-[11px]"></div></div>
                             <div class="pt-2 border-t border-slate-700/50"><div class="text-[9px] font-bold text-indigo-300 uppercase tracking-widest mb-2"><i class="fa-solid fa-ruler-combined mr-1"></i>Margin Halaman Dokumen Berkop (mm)</div>
                                 <div class="grid grid-cols-2 gap-3"><div><label class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margin Atas</label><input type="number" min="0" max="50" step="0.5" id="pr-mdatas" value="${window.globalSettings.marginAtas ?? ''}" placeholder="bawaan" class="w-full p-2.5 glass-input rounded-xl text-[11px]"></div><div><label class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margin Bawah</label><input type="number" min="0" max="50" step="0.5" id="pr-mdbawah" value="${window.globalSettings.marginBawah ?? ''}" placeholder="bawaan" class="w-full p-2.5 glass-input rounded-xl text-[11px]"></div><div><label class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margin Kiri</label><input type="number" min="0" max="50" step="0.5" id="pr-mdkiri" value="${window.globalSettings.marginKiri ?? ''}" placeholder="bawaan" class="w-full p-2.5 glass-input rounded-xl text-[11px]"></div><div><label class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margin Kanan</label><input type="number" min="0" max="50" step="0.5" id="pr-mdkanan" value="${window.globalSettings.marginKanan ?? ''}" placeholder="bawaan" class="w-full p-2.5 glass-input rounded-xl text-[11px]"></div></div>
-                                <p class="text-[9px] text-slate-500 font-medium mt-2">Berlaku untuk Daftar Hadir (siswa, pengawas, panitia), Daftar Ruang, Berita Acara, Tata Tertib, dan SK Panitia. Kosongkan semua untuk memakai margin bawaan tiap dokumen. Saat mencetak, pilih Margins: <b>Default</b> di dialog cetak agar margin ini dipakai.</p></div>
+                                <p class="text-[9px] text-slate-500 font-medium mt-2">Berlaku untuk Daftar Hadir (siswa, pengawas, panitia), Daftar Ruang, Berita Acara, dan Tata Tertib. Kosongkan semua untuk memakai margin bawaan tiap dokumen. Saat mencetak, pilih Margins: <b>Default</b> di dialog cetak agar margin ini dipakai.</p></div>
                         </div>
 
                         <div class="border-t border-slate-800 pt-4 mt-2">
@@ -3086,125 +3084,6 @@
             if (!p.sekretaris) p.sekretaris = { nama: g.namaSekretaris || '', nip: g.nipSekretaris || '' };
             return p;
         };
-        window.defaultSK = function() {
-            const g = window.globalSettings, sek = g.namaSekolah || 'Sekolah', tp = g.tahunPelajaran || '';
-            return {
-                nomor: '', tanggal: '', tempat: 'Pabedilan',
-                judul: 'PANITIA PENYELENGGARA ASESMEN BERBASIS KOMPUTER (CBT)',
-                menimbang: [
-                    'bahwa untuk menjamin pelaksanaan asesmen berbasis komputer (Computer Based Test/CBT) di ' + sek + ' Tahun Pelajaran ' + tp + ' berjalan tertib, lancar, jujur, objektif, dan akuntabel, perlu dibentuk panitia penyelenggara;',
-                    'bahwa penyelenggaraan asesmen berbasis komputer memerlukan pembagian tugas dan tanggung jawab yang jelas di bidang administrasi, keuangan, teknis jaringan dan server, serta pengawasan pelaksanaan;',
-                    'bahwa guru dan tenaga kependidikan yang namanya tercantum dalam keputusan ini dipandang memiliki kemampuan, kompetensi, dan integritas untuk melaksanakan tugas kepanitiaan tersebut;',
-                    'bahwa berdasarkan pertimbangan sebagaimana dimaksud pada huruf a, huruf b, dan huruf c, perlu menetapkan Keputusan Kepala ' + sek + ' tentang Panitia Penyelenggara Asesmen Berbasis Komputer (CBT) Tahun Pelajaran ' + tp + '.'
-                ].join('\n'),
-                mengingat: [
-                    'Undang-Undang Nomor 20 Tahun 2003 tentang Sistem Pendidikan Nasional;',
-                    'Undang-Undang Nomor 14 Tahun 2005 tentang Guru dan Dosen;',
-                    'Undang-Undang Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi;',
-                    'Peraturan Pemerintah Nomor 17 Tahun 2010 tentang Pengelolaan dan Penyelenggaraan Pendidikan sebagaimana telah diubah dengan Peraturan Pemerintah Nomor 66 Tahun 2010;',
-                    'Peraturan Pemerintah Nomor 57 Tahun 2021 tentang Standar Nasional Pendidikan sebagaimana telah diubah dengan Peraturan Pemerintah Nomor 4 Tahun 2022;',
-                    'Peraturan Menteri Pendidikan, Kebudayaan, Riset, dan Teknologi Nomor 21 Tahun 2022 tentang Standar Penilaian Pendidikan pada Pendidikan Anak Usia Dini, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah;',
-                    'Peraturan Menteri Pendidikan, Kebudayaan, Riset, dan Teknologi Nomor 12 Tahun 2024 tentang Kurikulum pada Pendidikan Anak Usia Dini, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah;',
-                    'Kalender Pendidikan Tahun Pelajaran ' + tp + ' yang berlaku di satuan pendidikan.'
-                ].join('\n'),
-                memperhatikan: [
-                    'Hasil rapat dewan guru dan tenaga kependidikan ' + sek + ' tentang persiapan pelaksanaan asesmen berbasis komputer Tahun Pelajaran ' + tp + ';',
-                    'Ketersediaan sarana dan prasarana pendukung (perangkat komputer, jaringan, dan listrik) di ' + sek + ';',
-                    'Pedoman pelaksanaan asesmen dari Dinas Pendidikan yang berlaku.'
-                ].join('\n'),
-                diktum: [
-                    'KESATU|Membentuk Panitia Penyelenggara Asesmen Berbasis Komputer (CBT) ' + sek + ' Tahun Pelajaran ' + tp + ' dengan susunan keanggotaan sebagaimana tercantum dalam Lampiran I Keputusan ini.',
-                    'KEDUA|Ketua bertugas memimpin, mengoordinasikan, dan bertanggung jawab atas seluruh pelaksanaan asesmen serta melaporkan hasilnya kepada Kepala Sekolah.',
-                    'KETIGA|Sekretaris bertugas menyusun jadwal, mengelola administrasi, daftar hadir, kartu peserta, dan berita acara pelaksanaan asesmen.',
-                    'KEEMPAT|Bendahara bertugas mengelola dan mempertanggungjawabkan keuangan penyelenggaraan asesmen sesuai ketentuan peraturan perundang-undangan.',
-                    'KELIMA|Proktor I dan Proktor II bertugas menyiapkan, mengoperasikan, dan memantau server, jaringan, serta perangkat aplikasi CBT, menjaga kerahasiaan bank soal dan token, serta menangani kendala teknis selama pelaksanaan.',
-                    'KEENAM|Anggota I, Anggota II, dan Anggota III bertugas membantu pelaksanaan teknis dan administrasi asesmen, mengatur ruang ujian, serta melaksanakan tugas lain yang diberikan Ketua.',
-                    'KETUJUH|Guru penyusun kisi-kisi dan naskah soal sebagaimana tercantum dalam Lampiran II Keputusan ini bertugas menyusun kisi-kisi, menulis naskah soal, serta menyerahkannya kepada Panitia sesuai jadwal yang ditetapkan, dengan menjaga kerahasiaan soal.',
-                    'KEDELAPAN|Seluruh anggota panitia wajib menjaga kerahasiaan soal, kunci jawaban, dan data pribadi peserta didik serta melaksanakan tugas dengan penuh tanggung jawab.',
-                    'KESEMBILAN|Segala biaya yang timbul akibat ditetapkannya Keputusan ini dibebankan pada anggaran satuan pendidikan yang sah dan sesuai ketentuan yang berlaku.',
-                    'KESEPULUH|Keputusan ini berlaku sejak tanggal ditetapkan, dengan ketentuan apabila terdapat kekeliruan di dalamnya akan diperbaiki sebagaimana mestinya.'
-                ].join('\n')
-            };
-        };
-        window.cleanJudul = function(j) {
-            const g = window.globalSettings, esc = x => String(x || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            let t = String(j || '').replace(new RegExp('\\s*TAHUN PELAJARAN\\s*[\\d/\\- ]*$', 'i'), '');
-            if (g.namaSekolah) t = t.replace(new RegExp('\\s*' + esc(g.namaSekolah) + '\\s*$', 'i'), '');
-            return t.trim();
-        };
-        window.skJudulLines = function(sk, g) { return [window.cleanJudul(sk.judul), String(g.namaSekolah || '').toUpperCase(), 'TAHUN PELAJARAN ' + (g.tahunPelajaran || '')]; };
-        window.getSK = function() { const o = Object.assign({}, window.defaultSK(), window.globalSettings.sk || {}); o.judul = window.cleanJudul(o.judul); return o; };
-        window.profilTabsHtml = function(tab) {
-            const t = (id, label) => `<button onclick="window.loadPengaturanSekolahDanPejabat('${id}')" class="px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${tab === id ? 'gradient-btn text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">${label}</button>`;
-            return `<div class="flex gap-2 mb-4 flex-wrap">${t('profil', 'Profil & KOP')}${t('panitia', 'Kepanitiaan')}</div>`;
-        };
-        window.renderKepanitiaan = function(container) {
-            const pn = window.getPanitia(), sk = window.getSK();
-            const lbl = 'block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1', inp = 'w-full p-2.5 glass-input rounded-xl text-[12px]';
-            const rows = window.PANITIA_ROLES.map(([k, label]) => `<div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end"><div class="md:col-span-2 text-[11px] font-bold text-indigo-300 pb-2.5">${label}</div><div class="md:col-span-6"><label class="${lbl}">Nama</label><input type="text" id="pn-${k}-nama" value="${window.escHtml((pn[k] || {}).nama)}" class="${inp}"></div><div class="md:col-span-4"><label class="${lbl}">NIP</label><input type="text" id="pn-${k}-nip" value="${window.escHtml((pn[k] || {}).nip)}" class="${inp}"></div></div>`).join('');
-            const ta = (id, label, v, rows) => `<div><label class="${lbl}">${label}</label><textarea id="${id}" rows="${rows}" class="${inp} leading-relaxed">${window.escHtml(v)}</textarea></div>`;
-            container.innerHTML = `
-                <div class="mb-6"><h1 class="text-2xl font-black text-white font-heading tracking-tight">Profil & Kepanitiaan</h1></div>
-                ${window.profilTabsHtml('panitia')}
-                <form onsubmit="window.simpanKepanitiaan(event)" class="space-y-4 max-w-3xl">
-                    <div class="glass-card-dark p-6 rounded-3xl border border-slate-800 space-y-3">
-                        <h3 class="text-indigo-400 font-bold text-[11px] uppercase tracking-widest">Susunan Panitia</h3>${rows}
-                    </div>
-                    ${window.penyusunEditorHtml(lbl, inp)}
-                    <div class="glass-card-dark p-6 rounded-3xl border border-slate-800 space-y-3">
-                        <h3 class="text-indigo-400 font-bold text-[11px] uppercase tracking-widest">Konsideransi SK Panitia</h3>
-                        <p class="text-[10px] text-slate-500">Satu butir per baris (nomor/huruf otomatis). Periksa dan sesuaikan dasar hukum dengan ketentuan terbaru sebelum SK ditandatangani.</p>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3"><div><label class="${lbl}">Nomor SK</label><input type="text" id="sk-nomor" value="${window.escHtml(sk.nomor)}" placeholder="421.3/ ... /SMPN1/2026" class="${inp}"></div><div><label class="${lbl}">Tempat</label><input type="text" id="sk-tempat" value="${window.escHtml(sk.tempat)}" class="${inp}"></div><div><label class="${lbl}">Tanggal Penetapan</label><input type="text" id="sk-tanggal" value="${window.escHtml(sk.tanggal)}" placeholder="20 Oktober 2026" class="${inp}"></div></div>
-                        <div><label class="${lbl}">Judul / Tentang</label><input type="text" id="sk-judul" value="${window.escHtml(sk.judul)}" class="${inp}"></div>
-                        ${ta('sk-menimbang', 'Menimbang', sk.menimbang, 8)}${ta('sk-mengingat', 'Mengingat', sk.mengingat, 10)}${ta('sk-memperhatikan', 'Memperhatikan', sk.memperhatikan, 5)}${ta('sk-diktum', 'Memutuskan / Menetapkan (format: KESATU|isi)', sk.diktum, 12)}
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-2"><button type="submit" class="flex-1 py-3 gradient-btn text-white font-bold rounded-xl text-[10px] uppercase tracking-wider">Simpan Kepanitiaan</button><button type="button" onclick="window.cetakSKPanitia()" class="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider"><i class="fa-solid fa-print mr-1"></i> Cetak SK Panitia</button><button type="button" onclick="window.resetKonsideransi()" class="px-4 py-3 bg-slate-800 text-slate-300 font-bold rounded-xl text-[10px] uppercase tracking-wider">Reset Konsideransi</button></div>
-                </form>`;
-        };
-        window.penyusunMapel = function() { const ex = (window.appData.soal || []).map(x => x.mapel).filter(Boolean); return [...new Set([...window.listMapel, ...ex])]; };
-        window.penyusunEditorHtml = function(lbl, inp) {
-            const ps = window.globalSettings.penyusun || {}, E = window.escHtml;
-            const cards = window.penyusunMapel().map((m, mi) => `<div class="p-3 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-2"><div class="text-[11px] font-bold text-white">${E(m)}</div>${['7', '8', '9'].map(k => { const d = (ps[m] || {})[k] || {}; return `<div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end"><div class="md:col-span-2 text-[10px] font-bold text-indigo-300 pb-2.5">Kelas ${k}</div><div class="md:col-span-10"><input type="text" id="ps-${mi}-${k}-nama" value="${E(d.nama)}" placeholder="Nama penyusun" class="${inp}"></div></div>`; }).join('')}</div>`).join('');
-            return `<div class="glass-card-dark p-6 rounded-3xl border border-slate-800 space-y-3"><h3 class="text-indigo-400 font-bold text-[11px] uppercase tracking-widest">Daftar Penyusun Kisi-kisi dan Naskah Soal</h3><p class="text-[10px] text-slate-500">Isi guru penyusun tiap mata pelajaran untuk kelas 7, 8, dan 9. Mapel yang dikosongkan tidak dicetak di Lampiran II SK.</p>${cards}</div>`;
-        };
-        window.simpanKepanitiaan = async function(e) {
-            if (e) e.preventDefault();
-            const g = window.globalSettings, pn = {};
-            window.PANITIA_ROLES.forEach(([k]) => { pn[k] = { nama: document.getElementById('pn-' + k + '-nama').value.trim(), nip: document.getElementById('pn-' + k + '-nip').value.trim() }; });
-            g.penyusun = {}; window.penyusunMapel().forEach((m, mi) => { ['7', '8', '9'].forEach(k => { const nm = document.getElementById('ps-' + mi + '-' + k + '-nama'); if (nm) { g.penyusun[m] = g.penyusun[m] || {}; g.penyusun[m][k] = { nama: nm.value.trim() }; } }); });
-            g.panitia = pn; g.namaPanitia = pn.ketua.nama; g.nipPanitia = pn.ketua.nip; g.namaSekretaris = pn.sekretaris.nama; g.nipSekretaris = pn.sekretaris.nip;
-            g.sk = {}; ['nomor','tempat','tanggal','judul','menimbang','mengingat','memperhatikan','diktum'].forEach(f => { g.sk[f] = document.getElementById('sk-' + f).value.trim(); });
-            localStorage.setItem('cbt_global_settings', JSON.stringify(g));
-            if (g.useSupabase && window.supabaseClient) { try { await window.supabaseClient.from('cbt_panesa_data').upsert({ key: 'cbt_global_settings', value: g }); } catch (err) { console.error('Gagal sinkron kepanitiaan:', err); } }
-            window.showNotification('Kepanitiaan Disimpan!');
-        };
-        window.resetKonsideransi = function() {
-            window.showConfirm('Kembalikan konsideransi ke teks bawaan?', () => { delete window.globalSettings.sk; localStorage.setItem('cbt_global_settings', JSON.stringify(window.globalSettings)); window.renderKepanitiaan(document.getElementById('content-container')); });
-        };
-        window.cetakSKPanitia = function() {
-            const g = window.globalSettings, sk = window.getSK(), pn = window.getPanitia(), E = window.escHtml;
-            const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
-            const strip = x => x.replace(/^([a-z]|\d+)[.)]\s+/i, '');
-            const ol = (t, type) => `<ol type="${type}" style="margin:0 0 0 18px;padding-left:14px">${lines(t).map(x => `<li style="margin-bottom:3px;text-align:justify">${E(strip(x))}</li>`).join('')}</ol>`;
-            const block = (label, inner) => `<table style="width:100%;margin-bottom:6px"><tr><td style="width:105px;vertical-align:top">${label}</td><td style="width:14px;vertical-align:top">:</td><td>${inner}</td></tr></table>`;
-            const diktum = lines(sk.diktum).map(x => { const [a, ...b] = x.split('|'); return b.length ? `<table style="width:100%;margin-bottom:4px"><tr><td style="width:75px;vertical-align:top">${E(a)}</td><td style="width:14px;vertical-align:top">:</td><td style="text-align:justify">${E(b.join('|'))}</td></tr></table>` : `<p style="text-align:justify">${E(x)}</p>`; }).join('');
-            const lamp = window.PANITIA_ROLES.map(([k, l], i) => `<tr><td style="text-align:center">${i + 1}</td><td>${E((pn[k] || {}).nama) || '-'}</td><td>${E((pn[k] || {}).nip) || '-'}</td><td>${l}</td></tr>`).join('');
-            const tgl = E(sk.tanggal) || '....................'; const jl = window.skJudulLines(sk, g).map(E);
-            const w = window.open('', '_blank'); if (!w) return window.showNotification('Pop-up diblokir browser.');
-            w.document.write(`<html><head><title>SK Panitia - ${E(g.namaSekolah)}</title><style>@page{size:A4;margin:18mm 20mm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.4;color:#000}td,th{font-size:12pt}.kop{width:100%;border-bottom:3px double #000;margin-bottom:12px;text-align:center}.kop img{width:105px;height:105px;object-fit:contain}.tb{width:100%;border-collapse:collapse}.tb th,.tb td{border:1px solid #000;padding:5px 8px}h4{text-align:center;margin:10px 0}.pb{page-break-before:always}${window.kopMarginCss()}${window.marginDokumenCss()}</style></head><body>
-                <table class="kop"><tr><td style="width:115px"><img src="${E(g.logoKiri || g.logoUrl)}"></td><td><div style="font-size:13pt;line-height:1.25">${E(g.pemkab)}<br>${E(g.dinas)}</div><div style="font-size:18pt;font-weight:bold;text-transform:uppercase;margin-top:2px">${E(g.namaSekolah)}</div><div style="font-size:10pt">${window.kopAlamat()}</div></td><td style="width:115px"><img src="${E(g.logoUrl)}"></td></tr></table>
-                <h4 style="margin-bottom:0">KEPUTUSAN KEPALA ${E(g.namaSekolah).toUpperCase()}</h4><div style="text-align:center">NOMOR : ${E(sk.nomor) || '....................'}</div><h4>TENTANG<br>${jl.join('<br>')}</h4><div style="text-align:center;margin-bottom:10px">KEPALA ${E(g.namaSekolah).toUpperCase()},</div>
-                ${block('Menimbang', ol(sk.menimbang, 'a'))}${block('Mengingat', ol(sk.mengingat, '1'))}${block('Memperhatikan', ol(sk.memperhatikan, '1'))}
-                <h4>MEMUTUSKAN:</h4>${block('Menetapkan', `<div style="margin-bottom:6px">KEPUTUSAN KEPALA ${E(g.namaSekolah).toUpperCase()} TENTANG ${jl.join(' ')}.</div>`)}${diktum}
-                <table style="width:100%;margin-top:18px"><tr><td style="width:55%"></td><td>Ditetapkan di : ${E(sk.tempat)}<br>Pada tanggal : ${tgl}<br>Kepala Sekolah,<br><br><br><br><b><u>${E(g.namaKasek)}</u></b><br>NIP. ${E(g.nipKasek)}</td></tr></table>
-                <div class="pb"></div><div style="font-size:11pt">Lampiran I Keputusan Kepala ${E(g.namaSekolah)}<br>Nomor : ${E(sk.nomor) || '....................'}<br>Tanggal : ${tgl}</div><h4>SUSUNAN PANITIA PENYELENGGARA ASESMEN BERBASIS KOMPUTER (CBT)<br>TAHUN PELAJARAN ${E(g.tahunPelajaran)}</h4>
-                <table class="tb"><thead><tr><th style="width:40px">No</th><th>Nama</th><th>NIP</th><th>Jabatan dalam Panitia</th></tr></thead><tbody>${lamp}</tbody></table>
-                <table style="width:100%;margin-top:24px"><tr><td style="width:55%"></td><td>Kepala Sekolah,<br><br><br><br><b><u>${E(g.namaKasek)}</u></b><br>NIP. ${E(g.nipKasek)}</td></tr></table>
-                ${(() => { const ps = g.penyusun || {}; let no = 0; const rows = window.penyusunMapel().map(m => { const items = ['7', '8', '9'].map(k => [k, (ps[m] || {})[k] || {}]); if (!items.some(x => x[1].nama)) return ''; no++; return items.map(([k, d], i) => `<tr>${i === 0 ? `<td rowspan="3" style="text-align:center">${no}</td><td rowspan="3">${E(m)}</td>` : ''}<td style="text-align:center">${k === '7' ? 'VII' : k === '8' ? 'VIII' : 'IX'}</td><td>${E(d.nama) || '-'}</td></tr>`).join(''); }).join(''); return `<div class="pb"></div><div style="font-size:11pt">Lampiran II Keputusan Kepala ${E(g.namaSekolah)}<br>Nomor : ${E(sk.nomor) || '....................'}<br>Tanggal : ${tgl}</div><h4>DAFTAR PENYUSUN KISI-KISI DAN NASKAH SOAL<br>ASESMEN BERBASIS KOMPUTER (CBT) TAHUN PELAJARAN ${E(g.tahunPelajaran)}</h4><table class="tb"><thead><tr><th style="width:36px">No</th><th>Mata Pelajaran</th><th style="width:60px">Kelas</th><th>Nama Penyusun</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="text-align:center">Belum ada data penyusun</td></tr>'}</tbody></table><table style="width:100%;margin-top:24px"><tr><td style="width:55%"></td><td>Kepala Sekolah,<br><br><br><br><b><u>${E(g.namaKasek)}</u></b><br>NIP. ${E(g.nipKasek)}</td></tr></table>`; })()}
-                <script>setTimeout(()=>window.print(),600)<\/script></body></html>`);
-            w.document.close();
-        };
-
         window.simpanProfil = async function(e) { 
             e.preventDefault(); 
             window.globalSettings.namaSekolah = document.getElementById('pr-sekolah').value; 
