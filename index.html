@@ -1318,9 +1318,35 @@
             modal.classList.remove('hidden');
         };
 
+        /* kunci Benar/Salah: A = Benar, B = Salah (sama seperti form soal). Boleh ditulis kata BENAR / SALAH */
+        window.kunciBS = function(k) {
+            const s = String(k == null ? '' : k).trim().toUpperCase();
+            if (['A', 'BENAR', 'TRUE', 'T', 'YA'].includes(s)) return 'A';
+            if (['B', 'SALAH', 'FALSE', 'F', 'S', 'TIDAK'].includes(s)) return 'B';
+            return 'A';
+        };
         window.downloadExcelTemplateSoal = function() {
-            const data = [{ jenis: "PG", tingkat: "7", mapel: "Bahasa Indonesia", pertanyaan: "Contoh soal", pilihan_a: "A", pilihan_b: "B", pilihan_c: "C", pilihan_d: "D", kunci: "A", skor: 2 }];
-            const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template"); XLSX.writeFile(wb, "Template_Soal.xlsx");
+            const data = [
+                { jenis: "PG",  tingkat: "7", mapel: "Bahasa Indonesia", judul: "", pertanyaan: "Ibu kota Indonesia adalah ...", pilihan_a: "Jakarta", pilihan_b: "Bandung", pilihan_c: "Surabaya", pilihan_d: "Medan", kunci: "A", skor: 2 },
+                { jenis: "PGK", tingkat: "7", mapel: "Bahasa Indonesia", judul: "", pertanyaan: "Pilihlah dua bilangan prima berikut!", pilihan_a: "2", pilihan_b: "4", pilihan_c: "5", pilihan_d: "9", kunci: "A,C", skor: 2 },
+                { jenis: "BS",  tingkat: "7", mapel: "Bahasa Indonesia", judul: "", pertanyaan: "Matahari terbit dari arah timur.", pilihan_a: "", pilihan_b: "", pilihan_c: "", pilihan_d: "", kunci: "Benar", skor: 2 }
+            ];
+            const petunjuk = [
+                { kolom: "jenis", keterangan: "PG = pilihan ganda | PGK = PG kompleks (jawaban benar lebih dari satu) | BS = Benar/Salah" },
+                { kolom: "tingkat", keterangan: "Kelas: 7, 8, atau 9" },
+                { kolom: "mapel", keterangan: "Nama mata pelajaran persis seperti di menu Bank Soal" },
+                { kolom: "judul", keterangan: "Opsional. Judul / teks di atas pertanyaan (mis. ayat Al-Qur'an). Otomatis diberi 1 baris kosong sebelum pertanyaan" },
+                { kolom: "pertanyaan", keterangan: "Wajib. Boleh memakai kode HTML, mis. x<sup>2</sup>, &pi;, <img ...>" },
+                { kolom: "pilihan_a - pilihan_d", keterangan: "PG dan PGK: isi keempatnya. BS: kosongkan (otomatis Benar / Salah)" },
+                { kolom: "kunci", keterangan: "PG: satu huruf (A/B/C/D) | PGK: huruf dipisah koma, mis. A,C atau A,B,D | BS: tulis Benar atau Salah" },
+                { kolom: "skor", keterangan: "Angka bulat per soal (bawaan 2). Total skor satu mapel per kelas dibatasi maksimal skor di Bank Soal" }
+            ];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(data); ws['!cols'] = [{ wch: 7 }, { wch: 8 }, { wch: 20 }, { wch: 18 }, { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 9 }, { wch: 6 }];
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            const wp = XLSX.utils.json_to_sheet(petunjuk); wp['!cols'] = [{ wch: 22 }, { wch: 110 }];
+            XLSX.utils.book_append_sheet(wb, wp, "Petunjuk");
+            XLSX.writeFile(wb, "Template_Soal.xlsx");
         };
 
         window.handleExcelImportSoal = async function(e) {
@@ -1337,17 +1363,18 @@
                         const pertanyaan = String(rowData.pertanyaan||'').trim();
                         if (!pertanyaan) continue;
                         
+                        const jn = window.normalisasiJenisSoal(rowData.jenis);
                         const newSoal = { 
                             id: window.generateId(), 
-                            jenis: window.normalisasiJenisSoal(rowData.jenis), 
+                            jenis: jn, 
                             tingkat: String(rowData.tingkat||'7').trim(), 
                             mapel: window.normalisasiMapel(rowData.mapel||'Umum'), 
                             pertanyaan: pertanyaan, judul: String(rowData.judul || '').trim(), 
-                            pilihan_a: String(rowData.pilihan_a||''), 
-                            pilihan_b: String(rowData.pilihan_b||''), 
-                            pilihan_c: String(rowData.pilihan_c||''), 
-                            pilihan_d: String(rowData.pilihan_d||''), 
-                            kunci: window.normalisasiJenisSoal(rowData.jenis) === 'PGK' ? (window.kunciList(rowData.kunci || 'A').join(',') || 'A') : String(rowData.kunci||'A').toUpperCase().trim(), 
+                            pilihan_a: jn === 'BS' ? 'Benar' : String(rowData.pilihan_a||''), 
+                            pilihan_b: jn === 'BS' ? 'Salah' : String(rowData.pilihan_b||''), 
+                            pilihan_c: jn === 'BS' ? '-' : String(rowData.pilihan_c||''), 
+                            pilihan_d: jn === 'BS' ? '-' : String(rowData.pilihan_d||''), 
+                            kunci: jn === 'PGK' ? (window.kunciList(rowData.kunci || 'A').join(',') || 'A') : (jn === 'BS' ? window.kunciBS(rowData.kunci) : String(rowData.kunci||'A').toUpperCase().trim()), 
                             skor: parseInt(rowData.skor||2) 
                         };
                         if (window.hitungSkorFolder(newSoal.tingkat, newSoal.mapel) + window.skorSoal(newSoal) > window.MAKS_SKOR_PER_MAPEL) { skipped++; skippedFolders.add(`${newSoal.mapel} (Kls ${newSoal.tingkat})`); continue; }
