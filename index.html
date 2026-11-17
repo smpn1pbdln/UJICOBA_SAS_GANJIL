@@ -136,14 +136,27 @@
         window.isCanvasSigned = false;
         window.listMapel = ['Pendidikan Agama dan Budi Pekerti', 'Pendidikan Pancasila', 'Bahasa Indonesia', 'Matematika', 'IPA', 'IPS', 'Bahasa Inggris', 'PJOK', 'Informatika', 'SBdP', 'Bahasa Sunda'];
 
-        window.saveLocalData = async function(key) { 
-            localStorage.setItem('cbt_data_' + key, JSON.stringify(window.appData[key])); 
-            if (window.globalSettings.useSupabase && window.supabaseClient) {
-                try { 
-                    await window.supabaseClient.from('cbt_panesa_data').upsert({ key: 'cbt_data_' + key, value: window.appData[key] }); 
-                } catch(e) { console.error("Gagal sinkron ke Supabase:", e); }
-            }
+        /* Simpan data: lokal + server. Kegagalan simpan ke server TIDAK lagi diam-diam: pengguna diberi tahu, data ditandai "kotor"
+           dan tidak ditimpa data lama dari server sampai berhasil terkirim (dicoba ulang otomatis). */
+        window.isDirtyKey = function(k) { try { return !!(window._dirtyKeys && window._dirtyKeys[k]) || localStorage.getItem('cbt_dirty_' + k) === '1'; } catch (e) { return false; } };
+        window.pushKeyToCloud = async function(key, silent) {
+            let msg = '';
+            try {
+                const { error } = await window.supabaseClient.from('cbt_panesa_data').upsert({ key: 'cbt_data_' + key, value: window.appData[key] });
+                if (!error) { if (window._dirtyKeys) delete window._dirtyKeys[key]; try { localStorage.removeItem('cbt_dirty_' + key); } catch (e) {} return true; }
+                msg = error.message || String(error.code || 'error');
+            } catch (e) { msg = (e && e.message) || 'koneksi gagal'; }
+            window._dirtyKeys = window._dirtyKeys || {}; window._dirtyKeys[key] = true; try { localStorage.setItem('cbt_dirty_' + key, '1'); } catch (e) {}
+            console.error('Gagal sinkron ke Supabase:', key, msg);
+            if (!silent && window.showNotification) window.showNotification('PERHATIAN: perubahan "' + key + '" BELUM tersimpan di server (' + msg + '). Tersimpan di perangkat ini dan dicoba lagi otomatis.');
+            return false;
         };
+        window.saveLocalData = async function(key) { 
+            try { localStorage.setItem('cbt_data_' + key, JSON.stringify(window.appData[key])); } catch (e) { console.error('Gagal simpan lokal', e); }
+            if (!(window.globalSettings.useSupabase && window.supabaseClient)) return true;
+            return await window.pushKeyToCloud(key);
+        };
+        setInterval(() => { if (!(window.globalSettings.useSupabase && window.supabaseClient)) return; ['soal', 'peserta', 'jadwal', 'pengawas', 'beritaAcara'].forEach(k => { if (window.isDirtyKey(k)) window.pushKeyToCloud(k, true); }); }, 15000);
 
 
         /* ===== PATCH: penyimpanan aman (hindari saling menimpa antar perangkat) ===== */
@@ -271,6 +284,7 @@
                         if (k === 'hasil') { window._aggHasil = Array.isArray(row.value) ? row.value : []; return; }
                         if (k === 'beritaAcara') return;
                         if (!wanted.includes(k) || !Array.isArray(row.value)) return;
+                        if (window.isDirtyKey(k)) return; // perubahan lokal belum terkirim ke server: jangan ditimpa
                         if (k === 'peserta' && _sMap) window.applyStatusMap(row.value, _sMap);
                         if (JSON.stringify(window.appData[k]) !== JSON.stringify(row.value)) {
                             window.appData[k] = row.value; changed.push(k);
@@ -1099,10 +1113,10 @@
             const m = (window._folderMapelList || [])[idx]; const t = String(window.currentFilterTingkat);
             if (m === undefined) return;
             const n = window.appData.soal.filter(x => String(x.tingkat) === t && x.mapel === m).length;
-            window.showPasswordConfirm(`Hapus folder "${m}" Kelas ${t} beserta ${n} soal di dalamnya? Tindakan ini tidak bisa dibatalkan.`, () => {
+            window.showPasswordConfirm(`Hapus folder "${m}" Kelas ${t} beserta ${n} soal di dalamnya? Tindakan ini tidak bisa dibatalkan.`, async () => {
                 window.appData.soal = window.appData.soal.filter(x => !(String(x.tingkat) === t && x.mapel === m));
-                window.saveLocalData('soal'); window.loadManajemenSoal(t, true, 'semua');
-                window.showNotification('Folder dihapus.');
+                const ok = await window.saveLocalData('soal'); window.loadManajemenSoal(t, true, 'semua');
+                if (ok) window.showNotification(n + ' soal di folder ' + m + ' Kelas ' + t + ' dihapus.');
             });
         };
         window.gabungFolderMapel = function(idx) {
@@ -1120,9 +1134,11 @@
 
         window.hapusSemuaSoalFolder = function() {
             const t = String(window.currentFilterTingkat), m = window.currentFilterMapel;
-            window.showPasswordConfirm(`Kosongkan folder ${m} Kelas ${t}?`, () => {
+            window.showPasswordConfirm(`Kosongkan folder ${m} Kelas ${t}?`, async () => {
+                const n = window.appData.soal.filter(x => String(x.tingkat) === t && x.mapel === m).length;
                 window.appData.soal = window.appData.soal.filter(x => !(String(x.tingkat) === t && x.mapel === m));
-                window.saveLocalData('soal'); window.loadManajemenSoal(t, true, m);
+                const ok = await window.saveLocalData('soal'); window.loadManajemenSoal(t, true, m);
+                if (ok) window.showNotification(n + ' soal dihapus dari folder ' + m + ' Kelas ' + t + '.');
             });
         };
 
