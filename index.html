@@ -1535,7 +1535,7 @@
                     <div class="glass-card-dark rounded-2xl overflow-hidden border border-slate-800"><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider"><th class="p-3 w-10"></th><th class="p-3">Username</th><th class="p-3">Nama</th><th class="p-3 text-center">Kelas & Ruang</th><th class="p-3 text-center">Password</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody class="divide-y divide-slate-800">`;
                 paginatedData.forEach(p => {
                     html += `<tr>
-                        <td class="p-3"><input type="checkbox" class="chk-peserta cursor-pointer accent-indigo-500 w-3.5 h-3.5 rounded ${p.ruang ? 'opacity-30 !cursor-not-allowed' : ''}" value="${p.id}" ${p.ruang ? `disabled title="Sudah diatur di ${p.ruang}"` : ''} onchange="window.updateBtnHapusPesertaTerpilih()"></td>
+                        <td class="p-3"><input type="checkbox" class="chk-peserta cursor-pointer accent-indigo-500 w-3.5 h-3.5 rounded" value="${p.id}" onchange="window.updateBtnHapusPesertaTerpilih()"></td>
                         <td class="p-3 font-mono font-bold text-indigo-300 tracking-wide">${p.username}</td><td class="p-3 font-semibold text-white tracking-tight">${p.nama}</td><td class="p-3 text-center font-bold text-slate-300">${p.kelas}<br><span class="text-[9px] text-sky-400 font-bold">${p.ruang || 'Belum Diatur'}</span></td><td class="p-3 text-center font-mono font-bold text-amber-300 tracking-widest">${String(p.password == null ? '' : p.password).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</td>
                         <td class="p-3 text-center space-x-1">
                             <button onclick="window.openEditPesertaModal('${p.id}')" title="Edit" class="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 rounded text-[10px] transition"><i class="fa-solid fa-pen"></i></button>
@@ -1621,12 +1621,14 @@
             const ruang = document.getElementById('pilihan-ruang-massal').value;
             const ids = Array.from(checked).map(chk => chk.value);
             
+            let diubah = 0;
             window.appData.peserta.forEach(p => {
-                if (ids.includes(p.id) && !p.ruang) { p.ruang = ruang; }
+                if (ids.includes(p.id) && !p.ruang) { p.ruang = ruang; diubah++; }
             });
             window.saveLocalData('peserta');
             document.getElementById('app-modal').classList.add('hidden');
-            window.showNotification(`Berhasil memindahkan ${ids.length} siswa ke ${ruang}`);
+            const dilewati = ids.length - diubah;
+            window.showNotification(`Berhasil memindahkan ${diubah} siswa ke ${ruang}` + (dilewati ? ` (${dilewati} siswa sudah punya ruang dan dilewati; reset ruangnya dulu untuk memindahkan)` : ''));
             window.loadDatabasePeserta(window.currentFilterTingkat, window.currentFilterKelasPeserta, window.currentPagePeserta);
         };
 
@@ -1666,7 +1668,7 @@
                 if (btnRuang) btnRuang.classList.add('hidden');
             } 
         };
-        window.hapusPesertaTerpilih = function() { const checked = document.querySelectorAll('.chk-peserta:checked'); if (checked.length === 0) return; window.showPasswordConfirm(`Hapus ${checked.length} siswa terpilih secara permanen?`, () => { const ids = Array.from(checked).map(chk => chk.value); window.appData.peserta = window.appData.peserta.filter(p => !ids.includes(p.id)); window.saveLocalData('peserta'); window.loadDatabasePeserta(); }); };
+        window.hapusPesertaTerpilih = function() { const checked = document.querySelectorAll('.chk-peserta:checked'); if (checked.length === 0) return; window.showPasswordConfirm(`Hapus ${checked.length} siswa terpilih secara permanen?`, async () => { const ids = Array.from(checked).map(chk => chk.value); const sebelum = window.appData.peserta.length; window.appData.peserta = window.appData.peserta.filter(p => !ids.includes(p.id)); const ok = await window.saveLocalData('peserta'); window.loadDatabasePeserta(window.currentFilterTingkat, window.currentFilterKelasPeserta, 1); if (ok) window.showNotification((sebelum - window.appData.peserta.length) + ' siswa berhasil dihapus.'); }); };
         
         window.hapusSemuaSiswaTingkat = function(tingkat) {
             window.showPasswordConfirm(`PERINGATAN! Hapus SEMUA siswa tingkat ${tingkat} secara permanen?`, () => {
