@@ -1099,7 +1099,7 @@
                 const filtered = soalAll.filter(x => String(x.tingkat) === T && x.mapel === filterMapel);
                 const safeM = String(filterMapel).replace(/\\/g,'\\\\').replace(/'/g, "\\'");
                 body = crumb([crumbLink('Bank Soal', "window.loadManajemenSoal('semua')", 'fa-folder-tree'), crumbLink(`Kelas ${T}`, `window.loadManajemenSoal('${T}')`, 'fa-folder'), crumbHere(`<i class="fa-solid fa-folder-open mr-1"></i>${filterMapel}`)]) +
-                `<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div class="text-[11px] text-slate-400">${window.infoSkorFolder(filtered)}</div><div class="flex gap-2"><button id="btn-hapus-soal" onclick="window.hapusSoalTerpilih()" class="hidden ${btnCls} bg-red-600 text-white"><i class="fa-solid fa-trash mr-1"></i> Hapus (<span id="count-soal-terpilih">0</span>)</button>${filtered.length ? `<button onclick="window.hapusSemuaSoalFolder()" class="${btnCls} bg-red-500/10 text-red-400 hover:bg-red-500/20"><i class="fa-solid fa-folder-minus mr-1"></i> Kosongkan folder</button>` : ''}</div></div>
+                `<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div class="text-[11px] text-slate-400">${window.infoSkorFolder(filtered)}</div><div class="flex gap-2">${filtered.length ? `<button onclick="window.telusuriSoal(0)" class="${btnCls} bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"><i class="fa-solid fa-eye mr-1"></i> Telusuri Soal</button>` : ''}<button id="btn-hapus-soal" onclick="window.hapusSoalTerpilih()" class="hidden ${btnCls} bg-red-600 text-white"><i class="fa-solid fa-trash mr-1"></i> Hapus (<span id="count-soal-terpilih">0</span>)</button>${filtered.length ? `<button onclick="window.hapusSemuaSoalFolder()" class="${btnCls} bg-red-500/10 text-red-400 hover:bg-red-500/20"><i class="fa-solid fa-folder-minus mr-1"></i> Kosongkan folder</button>` : ''}</div></div>
                 <div class="glass-card-dark rounded-2xl overflow-hidden border border-slate-800"><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider"><th class="p-3 w-10"><input type="checkbox" onchange="window.toggleAllSoal(event)"></th><th class="p-3 w-10">#</th><th class="p-3">Pertanyaan</th><th class="p-3 text-center">Jenis</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody class="divide-y divide-slate-800">
                 ${filtered.length === 0 ? `<tr><td colspan="5" class="p-6 text-center text-slate-500 font-medium">Folder masih kosong. Klik “Tambah Soal” atau “Import”.</td></tr>` :
                 filtered.map((q, idx) => `<tr><td class="p-3"><input type="checkbox" class="chk-soal" value="${q.id}" onchange="window.updateBtnHapusSoalTerpilih()"></td><td class="p-3 text-slate-400 font-bold">${idx+1}</td><td class="p-3 text-slate-200 max-w-md truncate">${q.pertanyaan}</td><td class="p-3 text-center"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold uppercase text-[9px]">${q.jenis||'PG'}</span></td><td class="p-3 text-center space-x-1 whitespace-nowrap"><button onclick="window.viewSoalModal('${q.id}')" class="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 rounded text-[10px] transition"><i class="fa-solid fa-eye"></i></button><button onclick="window.openEditSoalModal('${q.id}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded text-[10px] transition"><i class="fa-solid fa-pen"></i></button><button onclick="window.hapusSoal('${q.id}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
@@ -1333,6 +1333,71 @@
                 </div>
             `;
             modal.classList.remove('hidden');
+        };
+
+        /* ===== Telusuri Soal: lihat semua soal satu mapel satu per satu (Sebelumnya / Berikutnya) untuk memeriksa soal yang kurang cocok ===== */
+        window.telusuriSoal = function(idx) {
+            const T = String(window.currentFilterTingkat), M = window.currentFilterMapel;
+            const list = window.appData.soal.filter(x => String(x.tingkat) === T && x.mapel === M);
+            if (!list.length) return window.showNotification('Folder ini belum berisi soal.');
+            let i = parseInt(idx); if (isNaN(i)) i = 0; i = Math.max(0, Math.min(list.length - 1, i));
+            window._tsIdx = i; window._tsIds = list.map(x => x.id);
+            const s = list[i], n = list.length, E = window.escHtml;
+            const kArr = s.jenis === 'BS' ? (s.kunci || 'A').split(',') : window.kunciList(s.kunci || 'A');
+            const opt = (k, v) => (v === undefined || v === null || v === '-' || String(v).trim() === '') ? '' : `<div class="p-3 rounded-xl border text-[12px] leading-relaxed ${kArr.includes(k) ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-300'}"><span class="font-black mr-1">${k}.</span>${v}</div>`;
+            let modal = document.getElementById('app-modal'); if (!modal) { modal = document.createElement('div'); modal.id = 'app-modal'; document.body.appendChild(modal); }
+            modal.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/85 p-3 md:p-6 backdrop-blur-md';
+            const bn = 'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition';
+            modal.innerHTML = `<div id="ts-root" class="glass-card-dark rounded-3xl max-w-3xl w-full border border-slate-700 shadow-2xl relative overflow-y-auto max-h-[94vh] flex flex-col">
+                <div class="p-4 md:p-5 border-b border-slate-700 flex flex-wrap items-center justify-between gap-2">
+                    <div><div class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Telusuri Soal • ${E(M)} • Kelas ${E(T)}</div><div class="text-white font-black font-heading text-lg">No. ${i + 1} <span class="text-slate-500 font-bold text-sm">dari ${n}</span></div></div>
+                    <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-[9px] font-extrabold uppercase tracking-widest">${s.jenis === 'PGK' ? 'PG Kompleks' : s.jenis === 'BS' ? 'Benar/Salah' : 'PG'}</span><span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded text-[9px] font-extrabold uppercase tracking-widest">Skor ${window.skorSoal(s)}</span><button onclick="window.tsTutup()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"><i class="fa-solid fa-xmark"></i></button></div>
+                </div>
+                <div class="h-1 bg-slate-800"><div class="h-1 bg-indigo-500" style="width:${((i + 1) / n * 100).toFixed(1)}%"></div></div>
+                <div class="p-4 md:p-6 space-y-4 flex-1">
+                    <div class="text-[13px] text-slate-100 font-medium bg-slate-900 p-4 rounded-2xl border border-slate-800 leading-relaxed">${window.isiSoalHtml(s)}</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">${opt('A', s.pilihan_a)}${opt('B', s.pilihan_b)}${opt('C', s.pilihan_c)}${opt('D', s.pilihan_d)}</div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Kunci jawaban: <span class="text-emerald-300">${kArr.join(', ') || '-'}</span></div>
+                </div>
+                <div class="p-4 md:p-5 border-t border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.telusuriSoal(${i - 1})" ${i === 0 ? 'disabled' : ''} class="${bn} bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left mr-1"></i> Sebelumnya</button>
+                        <input type="number" min="1" max="${n}" value="${i + 1}" onchange="window.telusuriSoal(this.value - 1)" title="Loncat ke nomor" class="w-16 p-2 glass-input rounded-xl text-center text-[11px] font-bold">
+                        <button onclick="window.telusuriSoal(${i + 1})" ${i === n - 1 ? 'disabled' : ''} class="${bn} gradient-btn text-white disabled:opacity-30 disabled:cursor-not-allowed">Berikutnya <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.openEditSoalModal('${s.id}')" class="${bn} bg-sky-500/15 text-sky-300 hover:bg-sky-500/25"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
+                        <button onclick="window.tsHapus()" class="${bn} bg-red-500/10 text-red-400 hover:bg-red-500/20"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>
+                    </div>
+                </div>
+                <div class="px-5 pb-3 text-[9px] text-slate-500 text-center">Tips: tekan panah kiri / kanan di keyboard untuk pindah soal, Esc untuk menutup.</div>
+            </div>`;
+            modal.classList.remove('hidden');
+            if (!window._tsKeyBound) {
+                window._tsKeyBound = true;
+                document.addEventListener('keydown', e => {
+                    if (!document.getElementById('ts-root') || (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))) return;
+                    if (document.getElementById('confirm-modal') && !document.getElementById('confirm-modal').classList.contains('hidden')) return;
+                    if (e.key === 'ArrowRight') window.telusuriSoal(window._tsIdx + 1);
+                    else if (e.key === 'ArrowLeft') window.telusuriSoal(window._tsIdx - 1);
+                    else if (e.key === 'Escape') window.tsTutup();
+                });
+            }
+        };
+        window.tsTutup = function() {
+            const m = document.getElementById('app-modal'); if (m) m.classList.add('hidden');
+            window.loadManajemenSoal(window.currentFilterTingkat, true, window.currentFilterMapel);
+        };
+        window.tsHapus = function() {
+            const id = window._tsIds[window._tsIdx], no = window._tsIdx + 1;
+            window.showPasswordConfirm('Hapus soal nomor ' + no + ' ini?', async () => {
+                const idx = window._tsIdx;
+                window.appData.soal = window.appData.soal.filter(x => x.id !== id);
+                await window.saveLocalData('soal');
+                const sisa = window.appData.soal.filter(x => String(x.tingkat) === String(window.currentFilterTingkat) && x.mapel === window.currentFilterMapel).length;
+                if (!sisa) window.tsTutup(); else window.telusuriSoal(idx);
+                window.showNotification('Soal nomor ' + no + ' dihapus.');
+            });
         };
 
         /* kunci Benar/Salah: A = Benar, B = Salah (sama seperti form soal). Boleh ditulis kata BENAR / SALAH */
