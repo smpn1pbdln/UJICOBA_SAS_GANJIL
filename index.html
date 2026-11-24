@@ -459,13 +459,21 @@
             const j = document.getElementById(p + '-judul');
             return { judul: j ? j.value.trim() : '' };
         };
+        /* Tulisan Arab pada mapel PAI (dan Bahasa Arab) diperbesar; huruf Latin tidak berubah. Tag HTML tidak disentuh. */
+        window.mapelPAI = function(m) { return /agama islam|\bpai\b|bahasa arab|al[- ]?qur/i.test(String(m || '')); };
+        window.arabBesar = function(html, mapel) {
+            if (!window.mapelPAI(mapel) || html == null) return html;
+            const AR = '[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]';
+            const re = new RegExp(AR + '(?:' + AR + '|[ \\u060C\\u061B\\u061F\\u064B-\\u065F\\u200C\\u200D])*', 'g');
+            return String(html).split(/(<[^>]*>)/).map(seg => seg.startsWith('<') ? seg : seg.replace(re, m => '<span style="font-size:1.7em;line-height:1.9">' + m + '</span>')).join('');
+        };
         /* Isi soal (semua jenis): judul/teks (mis. ayat Al-Qur'an) -> 1 baris kosong -> pertanyaan. Baris baru pada pertanyaan dipertahankan */
         window.isiSoalHtml = function(q) {
             if (!q) return '';
             const judul = String(q.judul || '').trim();
             let html = '';
-            if (judul) html += `<div dir="auto" style="white-space:pre-line;margin-bottom:1.4em">${window.escHtml(judul)}</div>`;
-            return html + `<div style="white-space:pre-line">${q.pertanyaan}</div>`;
+            if (judul) html += `<div dir="auto" style="white-space:pre-line;margin-bottom:1.4em">${window.arabBesar(window.escHtml(judul), q.mapel)}</div>`;
+            return html + `<div style="white-space:pre-line">${window.arabBesar(q.pertanyaan, q.mapel)}</div>`;
         };
         window.kunciList = function(kunci) {
             const out = [];
@@ -1102,7 +1110,7 @@
                 `<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div class="text-[11px] text-slate-400">${window.infoSkorFolder(filtered)}</div><div class="flex gap-2">${filtered.length ? `<button onclick="window.telusuriSoal(0)" class="${btnCls} bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"><i class="fa-solid fa-eye mr-1"></i> Telusuri Soal</button>` : ''}<button id="btn-hapus-soal" onclick="window.hapusSoalTerpilih()" class="hidden ${btnCls} bg-red-600 text-white"><i class="fa-solid fa-trash mr-1"></i> Hapus (<span id="count-soal-terpilih">0</span>)</button>${filtered.length ? `<button onclick="window.hapusSemuaSoalFolder()" class="${btnCls} bg-red-500/10 text-red-400 hover:bg-red-500/20"><i class="fa-solid fa-folder-minus mr-1"></i> Kosongkan folder</button>` : ''}</div></div>
                 <div class="glass-card-dark rounded-2xl overflow-hidden border border-slate-800"><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider"><th class="p-3 w-10"><input type="checkbox" onchange="window.toggleAllSoal(event)"></th><th class="p-3 w-10">#</th><th class="p-3">Pertanyaan</th><th class="p-3 text-center">Jenis</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody class="divide-y divide-slate-800">
                 ${filtered.length === 0 ? `<tr><td colspan="5" class="p-6 text-center text-slate-500 font-medium">Folder masih kosong. Klik “Tambah Soal” atau “Import”.</td></tr>` :
-                filtered.map((q, idx) => `<tr><td class="p-3"><input type="checkbox" class="chk-soal" value="${q.id}" onchange="window.updateBtnHapusSoalTerpilih()"></td><td class="p-3 text-slate-400 font-bold">${idx+1}</td><td class="p-3 text-slate-200 max-w-md truncate">${q.pertanyaan}</td><td class="p-3 text-center"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold uppercase text-[9px]">${q.jenis||'PG'}</span></td><td class="p-3 text-center space-x-1 whitespace-nowrap"><button onclick="window.viewSoalModal('${q.id}')" class="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 rounded text-[10px] transition"><i class="fa-solid fa-eye"></i></button><button onclick="window.openEditSoalModal('${q.id}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded text-[10px] transition"><i class="fa-solid fa-pen"></i></button><button onclick="window.hapusSoal('${q.id}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
+                filtered.map((q, idx) => `<tr><td class="p-3"><input type="checkbox" class="chk-soal" value="${q.id}" onchange="window.updateBtnHapusSoalTerpilih()"></td><td class="p-3 text-slate-400 font-bold">${idx+1}</td><td class="p-3 text-slate-200 max-w-md truncate">${q.judul ? `<span class="text-slate-400">${window.arabBesar(window.escHtml(String(q.judul).replace(/\s+/g, ' ')), q.mapel)}</span> ` : ''}${window.arabBesar(q.pertanyaan, q.mapel)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold uppercase text-[9px]">${q.jenis||'PG'}</span></td><td class="p-3 text-center space-x-1 whitespace-nowrap"><button onclick="window.viewSoalModal('${q.id}')" class="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 rounded text-[10px] transition"><i class="fa-solid fa-eye"></i></button><button onclick="window.openEditSoalModal('${q.id}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded text-[10px] transition"><i class="fa-solid fa-pen"></i></button><button onclick="window.hapusSoal('${q.id}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
                 </tbody></table></div></div>`;
                 title = `${filterMapel} · Kelas ${T}`;
             }
@@ -1324,10 +1332,10 @@
                 <div class="glass-card-dark p-6 md:p-8 rounded-3xl max-w-xl w-full border border-slate-700 shadow-2xl relative overflow-y-auto max-h-[90vh]">
                     <div class="flex justify-between items-start mb-4 border-b border-slate-700 pb-3"><h3 class="text-lg font-bold text-white font-heading tracking-tight"><i class="fa-solid fa-eye text-sky-400 mr-2"></i>Detail Soal</h3><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-[9px] font-extrabold uppercase tracking-widest">Kelas ${s.tingkat} • ${s.jenis==='PGK'?'PGK':s.jenis==='BS'?'B/S':'PG'}</span></div>
                     <div class="space-y-4"><div class="text-[11px] text-slate-200 font-medium bg-slate-900 p-3.5 rounded-xl border border-slate-800 leading-relaxed">${window.isiSoalHtml(s)}</div><div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
-                        <div class="p-2.5 rounded-xl border ${kArr.includes('A')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">A. ${s.pilihan_a}</div>
-                        <div class="p-2.5 rounded-xl border ${kArr.includes('B')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">B. ${s.pilihan_b}</div>
-                        ${s.pilihan_c!=='-'?`<div class="p-2.5 rounded-xl border ${kArr.includes('C')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">C. ${s.pilihan_c}</div>`:''}
-                        ${s.pilihan_d!=='-'?`<div class="p-2.5 rounded-xl border ${kArr.includes('D')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">D. ${s.pilihan_d}</div>`:''}
+                        <div class="p-2.5 rounded-xl border ${kArr.includes('A')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">A. ${window.arabBesar(s.pilihan_a, s.mapel)}</div>
+                        <div class="p-2.5 rounded-xl border ${kArr.includes('B')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">B. ${window.arabBesar(s.pilihan_b, s.mapel)}</div>
+                        ${s.pilihan_c!=='-'?`<div class="p-2.5 rounded-xl border ${kArr.includes('C')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">C. ${window.arabBesar(s.pilihan_c, s.mapel)}</div>`:''}
+                        ${s.pilihan_d!=='-'?`<div class="p-2.5 rounded-xl border ${kArr.includes('D')?'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold':'bg-slate-900 border-slate-800 text-slate-400'}">D. ${window.arabBesar(s.pilihan_d, s.mapel)}</div>`:''}
                     </div></div>
                     <div class="mt-6"><button onclick="document.getElementById('app-modal').classList.add('hidden')" class="w-full py-2 bg-slate-800 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition">Tutup</button></div>
                 </div>
@@ -1344,7 +1352,7 @@
             window._tsIdx = i; window._tsIds = list.map(x => x.id);
             const s = list[i], n = list.length, E = window.escHtml;
             const kArr = s.jenis === 'BS' ? (s.kunci || 'A').split(',') : window.kunciList(s.kunci || 'A');
-            const opt = (k, v) => (v === undefined || v === null || v === '-' || String(v).trim() === '') ? '' : `<div class="p-3 rounded-xl border text-[12px] leading-relaxed ${kArr.includes(k) ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-300'}"><span class="font-black mr-1">${k}.</span>${v}</div>`;
+            const opt = (k, v) => (v === undefined || v === null || v === '-' || String(v).trim() === '') ? '' : `<div class="p-3 rounded-xl border text-[12px] leading-relaxed ${kArr.includes(k) ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-300'}"><span class="font-black mr-1">${k}.</span>${window.arabBesar(v, M)}</div>`;
             let modal = document.getElementById('app-modal'); if (!modal) { modal = document.createElement('div'); modal.id = 'app-modal'; document.body.appendChild(modal); }
             modal.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/85 p-3 md:p-6 backdrop-blur-md';
             const bn = 'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition';
@@ -3568,7 +3576,7 @@
                                 <div class="w-5 h-5 flex items-center justify-center ${isPGK ? 'rounded' : 'rounded-full'} border ${sel ? 'bg-indigo-500 border-indigo-400' : 'bg-slate-800 border-slate-600'} text-white flex-shrink-0">
                                     ${sel ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
                                 </div>
-                                <span class="text-[11px] font-medium leading-relaxed">${k}. ${val}</span>
+                                <span class="text-[11px] font-medium leading-relaxed">${k}. ${window.arabBesar(val, q.mapel)}</span>
                             </button>`;
                         }).join('')}
                     </div></div>
