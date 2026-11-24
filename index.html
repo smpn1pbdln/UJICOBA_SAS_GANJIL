@@ -134,7 +134,15 @@
         window.studentAnswers = {}; window.studentRagu = {}; window.examTimerInterval = null; window.currentRoute = 'login';
         window.violationCount = 0; window.isExamActive = false; window.supabaseClient = null;
         window.isCanvasSigned = false;
-        window.listMapel = ['Pendidikan Agama dan Budi Pekerti', 'Pendidikan Pancasila', 'Bahasa Indonesia', 'Matematika', 'IPA', 'IPS', 'Bahasa Inggris', 'PJOK', 'Informatika', 'SBdP', 'Bahasa Sunda'];
+        /* Nama mapel lama -> baru. Data lama (soal, jadwal, hasil, berita acara) otomatis ikut memakai nama baru saat dimuat. */
+        window.MAPEL_ALIAS = { 'Pendidikan Pancasila': 'PKn' };
+        window.normalisasiMapelData = function() {
+            let n = 0;
+            ['soal', 'jadwal', 'hasil', 'beritaAcara'].forEach(k => (window.appData[k] || []).forEach(x => { if (x && window.MAPEL_ALIAS[x.mapel]) { x.mapel = window.MAPEL_ALIAS[x.mapel]; n++; } }));
+            if (window.currentUser && window.MAPEL_ALIAS[window.currentUser.mapel]) { window.currentUser.mapel = window.MAPEL_ALIAS[window.currentUser.mapel]; n++; }
+            return n;
+        };
+        window.listMapel = ['Pendidikan Agama dan Budi Pekerti', 'PKn', 'Bahasa Indonesia', 'Matematika', 'IPA', 'IPS', 'Bahasa Inggris', 'PJOK', 'Informatika', 'SBdP', 'Bahasa Sunda'];
 
         /* Simpan data: lokal + server. Kegagalan simpan ke server TIDAK lagi diam-diam: pengguna diberi tahu, data ditandai "kotor"
            dan tidak ditimpa data lama dari server sampai berhasil terkirim (dicoba ulang otomatis). */
@@ -305,6 +313,7 @@
                             if (JSON.stringify(merged) !== JSON.stringify(window.appData.hasil)) { window.appData.hasil = merged; changed.push('hasil'); try { localStorage.setItem('cbt_data_hasil', JSON.stringify(merged)); } catch (e) {} }
                         }
                     }
+                    window.normalisasiMapelData();
                     window.lastPullAt = Date.now();
                 } catch(e) { console.error('pullCloud gagal', e); }
                 return changed;
@@ -460,7 +469,7 @@
             return { judul: j ? j.value.trim() : '' };
         };
         /* Tulisan Arab pada mapel PAI (dan Bahasa Arab) diperbesar; huruf Latin tidak berubah. Tag HTML tidak disentuh. */
-        window.mapelPAI = function(m) { return /agama islam|\bpai\b|bahasa arab|al[- ]?qur/i.test(String(m || '')); };
+        window.mapelPAI = function(m) { return /agama|\bpai\b|bahasa arab|al[- ]?qur/i.test(String(m || '')); };
         window.arabBesar = function(html, mapel) {
             if (!window.mapelPAI(mapel) || html == null) return html;
             const AR = '[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]';
@@ -667,6 +676,7 @@
                 const stored = localStorage.getItem('cbt_data_' + key);
                 if (stored) { window.appData[key] = JSON.parse(stored); hasData = true; }
             });
+            window.normalisasiMapelData();
             if (!hasData) {
                 window.appData.peserta = [{ id: window.generateId(), username: "101", nama: "Siswa Dummy", tingkat: "7", kelas: "7A", password: "A7K9M2", status_blokir: "AKTIF" }];
                 window.appData.pengawas = [{ id: window.generateId(), nama: "Budi Santoso", nip: "19800101", ruang: "Ruang 001", password: "123" }];
