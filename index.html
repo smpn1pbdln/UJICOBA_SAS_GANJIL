@@ -466,6 +466,8 @@
             const show = (id, on) => { const el = document.getElementById(p + '-' + id); if (el) el.classList.toggle('hidden', !on); };
             show('container-pg', j === 'PG'); show('container-pgk', j === 'PGK'); show('container-bs', j === 'BS');
             const pa = document.getElementById(p + '-pilihan-a'), grid = pa && pa.closest('.grid'); if (grid) grid.classList.toggle('hidden', j === 'BS');
+            // Benar/Salah: pilihan A-D disembunyikan dan terisi otomatis, jadi tidak boleh lagi "wajib diisi" (kolom tersembunyi yang wajib membuat form tidak bisa disimpan)
+            ['a', 'b', 'c', 'd'].forEach(k => { const inp = document.getElementById(p + '-pilihan-' + k); if (inp) inp.required = (j !== 'BS'); });
         };
         window.bacaJudulSoal = function(p, jenis) {
             const j = document.getElementById(p + '-judul');
@@ -1494,13 +1496,19 @@
             XLSX.writeFile(wb, "Template_Soal.xlsx");
         };
 
+        /* Kelas dari Excel: "8", 8, "8A", "Kelas 8", "VIII" => "8". Tidak dikenali => '' (tidak lagi otomatis jadi kelas 7) */
+        window.normalisasiTingkat = function(v) {
+            const s = String(v == null ? '' : v).trim().toUpperCase(); if (!s) return '';
+            const rom = /\b(VIII|VII|IX)\b/.exec(s); if (rom) return { VII: '7', VIII: '8', IX: '9' }[rom[1]];
+            const d = /([789])/.exec(s); return d ? d[1] : '';
+        };
         window.handleExcelImportSoal = async function(e) {
             const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
             reader.onload = async function(evt) {
                 try {
                     const data = new Uint8Array(evt.target.result); const workbook = XLSX.read(data, {type: 'array'});
                     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                    let count = 0, skipped = 0; const skippedFolders = new Set();
+                    let count = 0, skipped = 0, skipTingkat = 0; const skippedFolders = new Set(), perTingkat = {};
                     for(let r of rows) { 
                         const rowData = {}; 
                         for (let key in r) rowData[key.toLowerCase().trim()] = r[key]; 
@@ -1509,11 +1517,16 @@
                         if (!pertanyaan) continue;
                         
                         const jn = window.normalisasiJenisSoal(rowData.jenis);
+                        // kelas: kolom tingkat/kelas di Excel; bila kosong pakai kelas folder yang sedang dibuka; bila tetap tidak ada, baris dilewati
+                        const tg = window.normalisasiTingkat(rowData.tingkat || rowData.kelas || rowData.kls || rowData.tingkatan) || (['7', '8', '9'].includes(String(window.currentFilterTingkat)) ? String(window.currentFilterTingkat) : '');
+                        if (!tg) { skipTingkat++; continue; }
+                        const mpRaw = rowData.mapel || rowData['mata pelajaran'] || rowData.matapelajaran;
+                        const mp = String(mpRaw || '').trim() ? mpRaw : ((window.currentFilterMapel && window.currentFilterMapel !== 'semua') ? window.currentFilterMapel : 'Umum');
                         const newSoal = { 
                             id: window.generateId(), 
                             jenis: jn, 
-                            tingkat: String(rowData.tingkat||'7').trim(), 
-                            mapel: window.normalisasiMapel(rowData.mapel||'Umum'), 
+                            tingkat: tg, 
+                            mapel: window.normalisasiMapel(mp), 
                             pertanyaan: pertanyaan, judul: String(rowData.judul || '').trim(), 
                             pilihan_a: jn === 'BS' ? 'Benar' : String(rowData.pilihan_a||''), 
                             pilihan_b: jn === 'BS' ? 'Salah' : String(rowData.pilihan_b||''), 
@@ -1524,14 +1537,15 @@
                         };
                         if (window.hitungSkorFolder(newSoal.tingkat, newSoal.mapel) + window.skorSoal(newSoal) > window.MAKS_SKOR_PER_MAPEL) { skipped++; skippedFolders.add(`${newSoal.mapel} (Kls ${newSoal.tingkat})`); continue; }
                         window.appData.soal.push(newSoal); 
-                        count++;
+                        count++; perTingkat[tg] = (perTingkat[tg] || 0) + 1;
                     }
-                    if (skipped > 0) window.showNotification(`${skipped} soal dilewati karena total skor folder akan melebihi maksimal ${window.MAKS_SKOR_PER_MAPEL}: ${[...skippedFolders].join(', ')}`);
+                    const rincian = Object.keys(perTingkat).sort().map(k => `Kelas ${k}: ${perTingkat[k]}`).join(', ');
+                    if (skipped > 0 || skipTingkat > 0) window.showNotification([skipped > 0 ? `${skipped} soal dilewati karena total skor folder akan melebihi maksimal ${window.MAKS_SKOR_PER_MAPEL}: ${[...skippedFolders].join(', ')}` : '', skipTingkat > 0 ? `${skipTingkat} soal dilewati karena kolom kelas (tingkat) kosong atau tidak dikenali` : ''].filter(Boolean).join('. ') + (count > 0 ? `. Masuk: ${rincian}` : ''));
                     if (count > 0) {
                         await window.saveLocalData('soal');
-                        if (skipped === 0) window.showNotification(`Berhasil import ${count} soal baru!`); 
+                        if (skipped === 0 && skipTingkat === 0) window.showNotification(`Berhasil import ${count} soal baru (${rincian})!`); 
                         window.loadManajemenSoal(window.currentFilterTingkat || 'semua', true, window.currentFilterMapel || 'semua');
-                    } else if (skipped === 0) { 
+                    } else if (skipped === 0 && skipTingkat === 0) { 
                         window.showNotification('Gagal: Format kolom tidak sesuai atau data kosong!'); 
                     }
                 } catch(err) { 
