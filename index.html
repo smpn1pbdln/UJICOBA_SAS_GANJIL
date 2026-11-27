@@ -321,7 +321,7 @@
             return window._pullInflight;
         };
         /* ===== PATCH v5: status siswa disimpan PER SISWA (cbt_status_<username>) agar tidak saling menimpa ===== */
-        window.STATUS_FIELDS = ['status_login', 'status_blokir'];
+        window.STATUS_FIELDS = ['status_login', 'status_blokir', 'sudah_login'];
         window.cloudOn = function() { return !!(window.globalSettings.useSupabase && window.supabaseClient); };
         window.fetchAllStatusRows = async function() {
             if (!window.cloudOn()) return null;
@@ -378,14 +378,17 @@
         /* klaim login: tulis sid sendiri, baca ulang; hanya pemenang yang lolos (mencegah 2 perangkat login bersamaan) */
         window.claimLogin = async function(username, sid, hasResume) {
             const cloud = window.cloudOn(), mine = localStorage.getItem('cbt_sid_' + username);
+            window._claimReason = '';
+            if (!cloud) { const lp = window.appData.peserta.find(x => x.username === username); if (lp && lp.sudah_login) { window._claimReason = 'used'; return false; } }
             if (cloud) {
                 try { // tolak jika sesi lain masih AKTIF (kecuali perangkat/browser yang sama)
                     const cur = await window.supabaseClient.from('cbt_panesa_data').select('value').eq('key', 'cbt_status_' + username).maybeSingle();
                     const v = cur.data && cur.data.value;
+                    if (v && v.sudah_login) { window._claimReason = 'used'; return false; } // login hanya 1x, kecuali direset panitia
                     if (v && v.status_login === 'AKTIF' && v.sid && v.sid !== mine && !(hasResume && !mine)) return false;
                 } catch (e) {}
             }
-            await window.saveSiswaStatus(username, { status_login: 'AKTIF', sid });
+            await window.saveSiswaStatus(username, { status_login: 'AKTIF', sid, sudah_login: true });
             let ok = true;
             if (cloud) {
                 for (let i = 0; i < 2 && ok; i++) { // baca ulang dua kali agar login yang hampir bersamaan terdeteksi
@@ -484,6 +487,43 @@
             if (judul) html += `<div dir="auto" style="white-space:pre-line;margin-bottom:1.4em">${window.arabBesar(window.escHtml(judul), q.mapel)}</div>`;
             return html + `<div style="white-space:pre-line">${window.arabBesar(q.pertanyaan, q.mapel)}</div>`;
         };
+        /* ===== Tombol sisip rumus (pangkat, akar, seper, derajat, dll.) untuk kolom soal & pilihan ===== */
+        window.rumusToolbarHtml = function() {
+            const b = (k, label, title, val) => `<button type="button" onmousedown="event.preventDefault()" onclick="window.sisipRumus('${k}'${val !== undefined ? `, '${val}'` : ''})" title="${title}" class="px-2.5 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-lg text-[11px] font-bold transition min-w-[2rem]">${label}</button>`;
+            const grup = [
+                b('pangkat2', 'x²', 'Pangkat 2 (ketik angka/hurufnya dulu, lalu tekan)'), b('pangkat3', 'x³', 'Pangkat 3'), b('pangkatn', 'xⁿ', 'Pangkat lain'), b('indeks', 'x₂', 'Indeks bawah'),
+                b('akar', '√', 'Akar kuadrat (blok isi akarnya dulu untuk memberi garis atas)'), b('akar3', '∛', 'Akar pangkat 3'), b('akarn', 'ⁿ√', 'Akar pangkat lain'),
+                b('seper', 'a⁄b', 'Pecahan bertingkat (boleh blok tulisan 3/5 dulu)'), b('teks', '½', 'Setengah', '½'), b('teks', '¼', 'Seperempat', '¼'), b('teks', '¾', 'Tiga perempat', '¾'),
+                b('teks', '°', 'Derajat', '°'), b('teks', 'π', 'Pi', 'π'), b('teks', '×', 'Kali', '×'), b('teks', '÷', 'Bagi', '÷'), b('teks', '±', 'Plus minus', '±'),
+                b('teks', '≤', 'Kurang dari sama dengan', '≤'), b('teks', '≥', 'Lebih dari sama dengan', '≥'), b('teks', '≠', 'Tidak sama dengan', '≠'),
+                b('teks', '&lt;', 'Kurang dari', '&lt;'), b('teks', '&gt;', 'Lebih dari', '&gt;')
+            ];
+            return `<div class="p-3 rounded-2xl border border-slate-700 bg-slate-900/60 space-y-2"><div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest"><i class="fa-solid fa-square-root-variable mr-1"></i>Sisipkan Rumus: klik dulu di kolom pertanyaan atau pilihan, lalu tekan tombol</div><div class="flex flex-wrap gap-1.5">${grup.join('')}</div></div>`;
+        };
+        window.sisipRumus = function(kind, val) {
+            const el = window._rumusTarget;
+            if (!el || !document.body.contains(el)) { window.showNotification('Klik dulu di kolom pertanyaan atau pilihan yang ingin diisi.'); return; }
+            const s = el.selectionStart, e = el.selectionEnd, sel = el.value.slice(s, e);
+            const ov = x => `<span style="border-top:1px solid;padding:0 2px">${x}</span>`;
+            let txt = '';
+            if (kind === 'teks') txt = val;
+            else if (kind === 'pangkat2') txt = sel + '<sup>2</sup>';
+            else if (kind === 'pangkat3') txt = sel + '<sup>3</sup>';
+            else if (kind === 'pangkatn') { const n = prompt('Pangkat berapa? (mis. 4, n, -1)', '4'); if (n === null || n === '') return; txt = sel + '<sup>' + n + '</sup>'; }
+            else if (kind === 'indeks') { const n = prompt('Angka atau huruf indeks bawah (mis. 2)', '2'); if (n === null || n === '') return; txt = sel + '<sub>' + n + '</sub>'; }
+            else if (kind === 'akar') txt = sel ? '√' + ov(sel) : '√';
+            else if (kind === 'akar3') txt = sel ? '∛' + ov(sel) : '∛';
+            else if (kind === 'akarn') { const n = prompt('Akar pangkat berapa?', '4'); if (n === null || n === '') return; txt = '<sup>' + n + '</sup>√' + (sel ? ov(sel) : ''); }
+            else if (kind === 'seper') {
+                let a, b; const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(sel);
+                if (m) { a = m[1]; b = m[2]; } else { a = prompt('Pembilang (angka di atas):', '1'); if (a === null) return; b = prompt('Penyebut (angka di bawah):', '2'); if (b === null) return; }
+                txt = `<span style="display:inline-block;text-align:center;vertical-align:middle"><span style="display:block;border-bottom:1px solid;padding:0 3px">${a}</span><span style="display:block;padding:0 3px">${b}</span></span>`;
+            }
+            el.value = el.value.slice(0, s) + txt + el.value.slice(e);
+            const pos = s + txt.length; el.focus(); try { el.setSelectionRange(pos, pos); } catch (err) {}
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        document.addEventListener('focusin', ev => { const tg = ev.target; if (tg && /^(s|es)-(pertanyaan|judul|pilihan-[a-d])$/.test(tg.id || '')) window._rumusTarget = tg; });
         window.kunciList = function(kunci) {
             const out = [];
             String(kunci == null ? '' : kunci).toUpperCase().split(/[^A-Z]+/).forEach(tok => { if (/^[A-D]{1,4}$/.test(tok)) tok.split('').forEach(ch => { if (!out.includes(ch)) out.push(ch); }); });
@@ -911,6 +951,9 @@
 
             if (String(foundPeserta.status_blokir || 'AKTIF').toUpperCase() === 'BLOKIR') { showNotification('AKUN ANDA DIBLOKIR!'); return; }
 
+            const PESAN_SUDAH = 'Akun ini sudah pernah login (hanya dapat login 1x). Lapor Pengawas/Panitia untuk mereset akun Anda.';
+            if (foundPeserta.sudah_login) { showNotification(PESAN_SUDAH); return; }
+
             const hasResume = !!localStorage.getItem('cbt_exam_state_' + username);
             if (foundPeserta.status_login === 'AKTIF' && !hasResume) {
                 showNotification('Akun sedang AKTIF di perangkat lain! Lapor Pengawas untuk mereset akun Anda.');
@@ -919,7 +962,7 @@
             
             const sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
             const claimed = await window.claimLogin(username, sid, hasResume);
-            if (!claimed) { showNotification('Akun sedang AKTIF di perangkat lain! Lapor Pengawas untuk mereset akun Anda.'); return; }
+            if (!claimed) { showNotification(window._claimReason === 'used' ? PESAN_SUDAH : 'Akun sedang AKTIF di perangkat lain! Lapor Pengawas untuk mereset akun Anda.'); return; }
 
             window.currentUser = { nomor: username, nama: foundPeserta.nama, tingkat: foundPeserta.tingkat, kelas: foundPeserta.kelas, ruang: foundPeserta.ruang || '', role: 'siswa' };
             sessionStorage.setItem('cbt_session', JSON.stringify(window.currentUser));
@@ -1244,6 +1287,7 @@
                     <form onsubmit="window.simpanSoal(event)" class="space-y-5">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="md:col-span-2 space-y-4">
+                                ${window.rumusToolbarHtml()}
                                 <div id="s-judul-wrap" class="space-y-2 p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5"><div class="text-[9px] font-bold text-indigo-300 uppercase tracking-widest"><i class="fa-solid fa-heading mr-1"></i>Judul / Teks di Atas Pertanyaan (opsional, mis. ayat Al-Qur'an)</div><textarea id="s-judul" rows="3" class="w-full p-3 glass-input rounded-xl text-[13px] leading-relaxed resize-y" placeholder="Tulisan Arab / judul / bacaan..."></textarea><div class="text-[9px] text-slate-500 font-medium">Di bawah judul otomatis diberi 1 baris kosong sebelum pertanyaan.</div></div>
                                 <div><label class="block text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest mb-1.5">Isi Pertanyaan</label><textarea id="s-pertanyaan" rows="8" required class="w-full p-4 glass-input rounded-2xl text-[12px] leading-relaxed resize-y shadow-inner" placeholder="Ketikkan soal di sini..."></textarea></div>
                                 <div class="grid grid-cols-2 gap-4">
@@ -1302,6 +1346,7 @@
                     <form onsubmit="window.updateSoal(event, '${id}')" class="space-y-5">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="md:col-span-2 space-y-4">
+                                ${window.rumusToolbarHtml()}
                                 <div id="es-judul-wrap" class="space-y-2 p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5"><div class="text-[9px] font-bold text-indigo-300 uppercase tracking-widest"><i class="fa-solid fa-heading mr-1"></i>Judul / Teks di Atas Pertanyaan (opsional, mis. ayat Al-Qur'an)</div><textarea id="es-judul" rows="3" class="w-full p-3 glass-input rounded-xl text-[13px] leading-relaxed resize-y" placeholder="Tulisan Arab / judul / bacaan...">${window.escHtml(s.judul || '')}</textarea><div class="text-[9px] text-slate-500 font-medium">Di bawah judul otomatis diberi 1 baris kosong sebelum pertanyaan.</div></div>
                                 <div><label class="block text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest mb-1.5">Isi Pertanyaan</label><textarea id="es-pertanyaan" rows="8" required class="w-full p-4 glass-input rounded-2xl text-[12px] leading-relaxed resize-y shadow-inner">${s.pertanyaan}</textarea></div>
                                 <div class="grid grid-cols-2 gap-4">
@@ -2277,13 +2322,13 @@
             const elem = document.getElementById('blokir-list-container'); if (!elem) return;
             const E = window.escHtml, term = String(window._stCari || '').trim().toLowerCase(), mode = window._stUrut || 'nama-asc';
             const L = (a, b) => String(a || '').localeCompare(String(b || ''), 'id', { numeric: true });
-            const rank = p => String(p.status_blokir || '').toUpperCase() === 'BLOKIR' ? 0 : (p.status_login === 'AKTIF' ? 1 : 2);
-            const base = window.appData.peserta.filter(p => String(p.status_blokir || '').toUpperCase() === 'BLOKIR' || p.status_login === 'AKTIF');
+            const rank = p => String(p.status_blokir || '').toUpperCase() === 'BLOKIR' ? 0 : (p.status_login === 'AKTIF' ? 1 : (p.sudah_login ? 2 : 3));
+            const base = window.appData.peserta.filter(p => String(p.status_blokir || '').toUpperCase() === 'BLOKIR' || p.status_login === 'AKTIF' || p.sudah_login);
             const sorters = { 'nama-asc': (a, b) => L(a.nama, b.nama), 'kelas-asc': (a, b) => L(a.kelas, b.kelas) || L(a.nama, b.nama), 'status-asc': (a, b) => rank(a) - rank(b) || L(a.nama, b.nama) };
             const filtered = base.filter(p => !term || [p.username, p.nama, p.kelas, p.ruang].some(v => String(v || '').toLowerCase().includes(term))).sort(sorters[mode] || sorters['nama-asc']);
             const h = document.getElementById('st-hitung'); if (h) h.textContent = filtered.length + ' dari ' + base.length + ' siswa';
             let html = '';
-            if (base.length === 0) { html = `<div class="glass-card-dark p-6 rounded-2xl text-center text-emerald-400 font-bold text-[11px]">Semua siswa offline dan aman (tidak ada yang terblokir atau nyangkut).</div>`; }
+            if (base.length === 0) { html = `<div class="glass-card-dark p-6 rounded-2xl text-center text-emerald-400 font-bold text-[11px]">Tidak ada siswa yang terblokir, sedang login, atau terkunci (sudah login 1x).</div>`; }
             else if (filtered.length === 0) { html = `<div class="glass-card-dark p-6 rounded-2xl text-center text-slate-500 font-medium text-[11px]">Tidak ada siswa yang cocok dengan pencarian.</div>`; }
             else {
                 html = `<div class="glass-card-dark rounded-2xl overflow-hidden border border-slate-800"><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider"><th class="p-3">Username</th><th class="p-3">Nama</th><th class="p-3 text-center">Kelas</th><th class="p-3 text-center">Ruang</th><th class="p-3 text-center">Status</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody class="divide-y divide-slate-800">`;
@@ -2291,6 +2336,7 @@
                     let statusBadge = '';
                     if (String(p.status_blokir || '').toUpperCase() === 'BLOKIR') statusBadge = '<span class="px-2 py-0.5 bg-red-500/20 text-red-400 rounded text-[9px] font-bold uppercase tracking-widest">TERBLOKIR</span>';
                     else if (p.status_login === 'AKTIF') statusBadge = '<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[9px] font-bold uppercase tracking-widest animate-pulse">SEDANG LOGIN</span>';
+                    else if (p.sudah_login) statusBadge = '<span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[9px] font-bold uppercase tracking-widest">SUDAH LOGIN 1x (TERKUNCI)</span>';
                     html += `<tr><td class="p-3 font-mono text-indigo-300 font-bold tracking-wide">${E(p.username)}</td><td class="p-3 text-white font-semibold tracking-tight">${E(p.nama)}</td><td class="p-3 text-center text-slate-300 font-bold">${E(p.kelas)}</td><td class="p-3 text-center text-slate-300 font-bold">${E(p.ruang || '-')}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-center"><button onclick="window.resetAkunSiswa('${E(p.username)}')" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-amber-500/30 transition shadow"><i class="fa-solid fa-rotate-right mr-1"></i> Reset</button></td></tr>`;
                 });
                 html += `</tbody></table></div></div>`;
@@ -2300,7 +2346,7 @@
 
         window.resetAkunSiswa = async function(username) {
             if (window.appData.peserta.some(p => p.username === username)) {
-                await window.saveSiswaStatus(username, { status_blokir: 'AKTIF', status_login: 'OFFLINE', sid: null });
+                await window.saveSiswaStatus(username, { status_blokir: 'AKTIF', status_login: 'OFFLINE', sid: null, sudah_login: false });
                 window.showNotification('Akun ' + username + ' berhasil direset!');
                 window.loadHadirDanGabung();
             }
@@ -2314,8 +2360,8 @@
         };
 
         window.resetSemuaLoginSiswa = function() {
-            window.showConfirm("Reset status login semua siswa? (Siswa yang sedang aktif akan diminta login ulang jika halamannya tertutup)", async () => {
-                await window.saveStatusBatch({ status_login: 'OFFLINE', sid: null }, st => st.status_login === 'AKTIF');
+            window.showConfirm("Reset status login semua siswa? (Semua siswa yang sedang login atau sudah terkunci dapat login 1x lagi)", async () => {
+                await window.saveStatusBatch({ status_login: 'OFFLINE', sid: null, sudah_login: false }, st => st.status_login === 'AKTIF' || st.sudah_login);
                 window.loadHadirDanGabung();
             });
         };
@@ -3489,7 +3535,9 @@
             
             const jadwalAktif = window.appData.jadwal.filter(j => String(j.tingkat) === String(window.currentUser.tingkat) && String(j.status).toLowerCase() === 'aktif');
 
-            let html = `<div class="max-w-xl mx-auto space-y-6 mt-12"><div class="glass-card-dark p-8 rounded-3xl border border-slate-800 text-center"><h2 class="text-2xl font-bold text-white mb-2 font-heading tracking-tight">Pilih Ujian</h2><p class="text-[11px] text-slate-400 mb-6">Halo, <b class="text-indigo-300 uppercase tracking-widest">${window.currentUser.nama}</b></p><div class="space-y-3 text-left">`;
+            const E = window.escHtml, ps = window.appData.peserta.find(x => String(x.username) === String(window.currentUser.nomor)) || {};
+            const row = (k, v) => `<div class="flex justify-between gap-4 py-2 border-b border-slate-800 last:border-0"><span class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">${k}</span><span class="text-white font-semibold text-right">${E(v || '-')}</span></div>`;
+            let html = `<div class="max-w-xl mx-auto space-y-6 mt-12"><div class="glass-card-dark p-8 rounded-3xl border border-slate-800 text-center"><h2 class="text-2xl font-bold text-white mb-2 font-heading tracking-tight">Konfirmasi Identitas</h2><p class="text-[11px] text-slate-400 mb-4">Periksa identitas Anda, lalu pilih mapel ujian yang aktif.</p><div class="bg-slate-900 p-4 rounded-2xl text-left text-[12px] leading-relaxed mb-5">${row('Nama Lengkap', window.currentUser.nama)}${row('Kelas', window.currentUser.kelas)}${row('Ruang', ps.ruang || window.currentUser.ruang)}</div><div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left mb-2">Mapel Ujian Aktif</div><div class="space-y-3 text-left">`;
             if(jadwalAktif.length === 0) { html += `<div class="p-4 bg-slate-900 rounded-2xl text-center text-slate-400 text-[11px] space-y-3"><p>Belum ada jadwal ujian aktif untuk kelas Anda saat ini. Anda belum dapat mengerjakan ujian.</p><button onclick="window.pullCloud(['jadwal']).then(() => window.loadSiswaSelectMapelView(true))" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-rotate mr-1"></i>Muat Ulang Jadwal</button></div>`; } 
             else { 
                 jadwalAktif.forEach(j => { 
@@ -3525,13 +3573,14 @@
             if (!jd.length) { window.showNotification('Jadwal untuk mata pelajaran ini tidak aktif. Silakan hubungi pengawas.'); return window.loadSiswaSelectMapelView(true); }
             const jw = jd.find(j => j.tanggal === iso) || jd[0] || {};
             const row = (k, v) => `<div class="flex justify-between gap-4 py-2 border-b border-slate-800 last:border-0"><span class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">${k}</span><span class="text-white font-semibold text-right">${E(v || '-')}</span></div>`;
-            container.innerHTML = `<div class="max-w-md mx-auto space-y-6 mt-12"><div class="glass-card-dark p-8 rounded-3xl border border-slate-800 text-center space-y-4"><h2 class="text-2xl font-bold text-white font-heading tracking-tight">Konfirmasi Data Peserta</h2><p class="text-[11px] text-slate-400">Periksa data berikut. Jika ada yang tidak sesuai, lapor ke pengawas sebelum memulai.</p><div class="bg-slate-900 p-4 rounded-2xl text-left text-[12px] leading-relaxed">${row('Nama Lengkap', u.nama)}${row('Kelas', u.kelas)}${row('Ruang', ps.ruang || u.ruang)}${row('Sesi Ke-', jw.jam_ke)}${row('Mata Pelajaran', u.mapel)}</div><div class="flex gap-2"><button onclick="window.loadSiswaSelectMapelView(true)" class="flex-1 py-1.5 bg-slate-800 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition">Kembali</button><button onclick="window.mulaiKerjakanUjian(this)" class="flex-1 py-1.5 gradient-btn text-white rounded-xl text-[10px] font-bold uppercase tracking-wider">Data Benar, Mulai</button></div></div></div>`;
+            container.innerHTML = `<div class="max-w-md mx-auto space-y-6 mt-12"><div class="glass-card-dark p-8 rounded-3xl border border-slate-800 text-center space-y-4"><h2 class="text-2xl font-bold text-white font-heading tracking-tight">Konfirmasi Data Peserta</h2><p class="text-[11px] text-slate-400">Periksa data berikut. Jika ada yang tidak sesuai, lapor ke pengawas sebelum memulai.</p><div class="bg-slate-900 p-4 rounded-2xl text-left text-[12px] leading-relaxed">${row('Nama Lengkap', u.nama)}${row('Kelas', u.kelas)}${row('Ruang', ps.ruang || u.ruang)}${row('Sesi Ke-', jw.jam_ke)}${row('Mapel Ujian Aktif', u.mapel)}</div><div class="flex gap-2"><button onclick="window.loadSiswaSelectMapelView(true)" class="flex-1 py-1.5 bg-slate-800 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition">Kembali</button><button onclick="window.mulaiKerjakanUjian(this)" class="flex-1 py-1.5 gradient-btn text-white rounded-xl text-[10px] font-bold uppercase tracking-wider">Data Benar, Mulai</button></div></div></div>`;
         };
 
         /* Jadwal aktif untuk tingkat siswa + mapel; tanpa jadwal aktif siswa tidak dapat mengerjakan */
         window.jadwalAktifSiswa = function(mapel) {
             const u = window.currentUser || {};
-            return (window.appData.jadwal || []).find(j => String(j.tingkat) === String(u.tingkat) && String(j.mapel) === String(mapel) && String(j.status).toLowerCase() === 'aktif') || null;
+            const aktif = (window.appData.jadwal || []).filter(j => String(j.tingkat) === String(u.tingkat) && String(j.mapel) === String(mapel) && String(j.status).toLowerCase() === 'aktif');
+            return aktif.find(j => j.tanggal === window.isoHariIni()) || aktif[0] || null;
         };
         window.mulaiKerjakanUjian = async function(btn) {
             btn.disabled = true; window.verifySidNow();
@@ -3621,28 +3670,36 @@
             tick(); window.examTimerInterval = setInterval(tick, 1000);
         }
 
-        window.promptSubmitToken = function() {
-            const jadwal = window.appData.jadwal.find(j => String(j.tingkat) === String(window.currentUser.tingkat) && String(j.mapel) === String(window.currentUser.mapel) && String(j.status).toLowerCase() === 'aktif');
-            const activeToken = jadwal ? jadwal.token : '';
+        /* Token ujian milik mapel yang sedang dikerjakan siswa (tingkat + mapel); utamakan jadwal hari ini */
+        window.jadwalUntukToken = function() {
+            const u = window.currentUser || {};
+            const all = (window.appData.jadwal || []).filter(j => String(j.tingkat) === String(u.tingkat) && String(j.mapel) === String(u.mapel));
+            return all.find(j => String(j.status).toLowerCase() === 'aktif' && j.tanggal === window.isoHariIni()) || all.find(j => String(j.status).toLowerCase() === 'aktif') || all[0] || null;
+        };
+        window.promptSubmitToken = async function() {
+            try { if (window.pullCloud) await window.pullCloud(['jadwal']); } catch (e) {} // token terbaru dari server
+            const jadwal = window.jadwalUntukToken();
+            const activeToken = jadwal ? String(jadwal.token || '').trim() : '';
 
-            if (!activeToken) { window.submitFinalAnswers(); return; }
+            if (!activeToken) { window.showNotification('Token untuk mata pelajaran ini belum diatur. Hubungi pengawas.'); return; }
 
             let modal = document.getElementById('app-modal'); if (!modal) { modal = document.createElement('div'); modal.id = 'app-modal'; document.body.appendChild(modal); }
             modal.className = 'fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-md';
             modal.innerHTML = `
                 <div class="glass-card-dark p-6 rounded-3xl max-w-sm w-full border border-slate-700 shadow-2xl text-center space-y-4">
                     <div class="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto text-xl shadow-inner"><i class="fa-solid fa-key"></i></div>
-                    <div><h3 class="text-base font-bold text-white font-heading tracking-tight">Konfirmasi Selesai</h3><p class="text-[10px] text-slate-300 mt-1 leading-relaxed">Masukkan token ujian untuk mengumpulkan jawaban.</p></div>
+                    <div><h3 class="text-base font-bold text-white font-heading tracking-tight">Konfirmasi Selesai</h3><p class="text-[10px] text-slate-300 mt-1 leading-relaxed">Masukkan token ujian <b>${window.escHtml(window.currentUser.mapel)}</b> untuk mengumpulkan jawaban. Token dibagikan oleh pengawas.</p></div>
                     <input type="text" id="input-token-selesai" class="w-full p-2.5 glass-input rounded-xl text-center font-mono font-bold text-amber-300 tracking-[0.2em] text-xs uppercase focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="TOKEN">
-                    <div class="flex gap-2 pt-1"><button onclick="document.getElementById('app-modal').classList.add('hidden')" class="flex-1 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition">Batal</button><button onclick="window.verifyAndSubmit('${activeToken}')" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-lg transition">Kirim</button></div>
+                    <div class="flex gap-2 pt-1"><button onclick="document.getElementById('app-modal').classList.add('hidden')" class="flex-1 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-slate-700 transition">Batal</button><button onclick="window.verifyAndSubmit()" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-lg transition">Kirim</button></div>
                 </div>
             `;
             modal.classList.remove('hidden'); setTimeout(() => document.getElementById('input-token-selesai').focus(), 100);
         };
 
-        window.verifyAndSubmit = function(correctToken) {
+        window.verifyAndSubmit = function() {
             const input = document.getElementById('input-token-selesai').value.trim().toUpperCase();
-            if (input !== correctToken) { window.showNotification("⚠️ Token salah! Ujian belum dikumpulkan."); return; }
+            const j = window.jadwalUntukToken(), token = String((j && j.token) || '').trim().toUpperCase();
+            if (!token || input !== token) { window.showNotification("⚠️ Token salah! Ujian belum dikumpulkan."); return; }
             document.getElementById('app-modal').classList.add('hidden'); window.submitFinalAnswers();
         };
 
@@ -3663,7 +3720,7 @@
             const nilai = max > 0 ? Math.round((score/max)*100) : 0;
             
             const newResult = { id: window.generateId(), username: window.currentUser.nomor, nama: window.currentUser.nama, kelas: window.currentUser.kelas, tingkat: window.currentUser.tingkat, mapel: window.currentUser.mapel, nilai, waktu: new Date().toISOString() };
-            window.appData.hasil.push(newResult); window.clearExamState(); window.fullscreenWasEntered = false; try { if (document.fullscreenElement) document.exitFullscreen(); } catch(e) {} window.saveHasilMerged(newResult); window.saveSiswaStatus(window.currentUser.nomor, { status_login: 'OFFLINE' });
+            window.appData.hasil.push(newResult); window.clearExamState(); window.fullscreenWasEntered = false; try { if (document.fullscreenElement) document.exitFullscreen(); } catch(e) {} window.saveHasilMerged(newResult); window.saveSiswaStatus(window.currentUser.nomor, { status_login: 'OFFLINE', sudah_login: false });
             
             document.getElementById('content-container').innerHTML = `<div class="glass-card-dark p-8 rounded-3xl text-center max-w-sm mx-auto space-y-4 mt-12 border border-emerald-500/30 shadow-2xl"><div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-2"><i class="fa-solid fa-check"></i></div><h2 class="text-lg font-bold text-white font-heading tracking-tight">Ujian Selesai</h2><p class="text-[11px] text-slate-400 leading-relaxed">Jawaban Anda sudah tersimpan. Terima kasih, silakan keluar dari akun dan tunggu arahan pengawas.</p><button onclick="window.handleLogout()" class="w-full mt-4 py-2 gradient-btn text-white font-bold rounded-xl text-[10px] uppercase tracking-wider shadow-lg">Keluar</button></div>`;
         };
