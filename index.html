@@ -1131,7 +1131,7 @@
             if (filterTingkat === 'semua') {
                 // LEVEL 1: folder tingkat
                 body = crumb([crumbHere('<i class="fa-solid fa-folder-tree mr-1"></i>Bank Soal')]) +
-                    `<div class="flex flex-col gap-2">` +
+                    `<div class="flex justify-end mb-3"><button onclick="window.exportSoalExcel('semua', 'semua')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider shadow-md"><i class="fa-solid fa-file-export mr-1"></i> Ekspor Semua Soal</button></div><div class="flex flex-col gap-2">` +
                     ['7','8','9'].map(t => {
                         const list = soalAll.filter(x => String(x.tingkat) === t);
                         const nMapel = new Set(list.map(x => x.mapel)).size;
@@ -1143,7 +1143,7 @@
                 const extra = [...new Set(inTingkat.map(x => x.mapel))].filter(m => m && !window.listMapel.includes(m));
                 const mapelList = [...window.listMapel, ...extra];
                 body = crumb([crumbLink('Bank Soal', "window.loadManajemenSoal('semua')", 'fa-folder-tree'), crumbHere(`<i class="fa-solid fa-folder-open mr-1"></i>Kelas ${T}`)]) +
-                    `<div class="flex flex-col gap-2">` +
+                    `<div class="flex justify-end mb-3"><button onclick="window.exportSoalExcel(window.currentFilterTingkat, 'semua')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider shadow-md"><i class="fa-solid fa-file-export mr-1"></i> Ekspor Soal Kelas ${window.currentFilterTingkat}</button></div><div class="flex flex-col gap-2">` +
                     mapelList.map((m, mi) => {
                         const n = inTingkat.filter(x => x.mapel === m).length; const sk = inTingkat.filter(x => x.mapel === m).reduce((a, x) => a + window.skorSoal(x), 0);
                         const safe = String(m).replace(/\\/g,'\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -1162,7 +1162,7 @@
                 const filtered = soalAll.filter(x => String(x.tingkat) === T && x.mapel === filterMapel);
                 const safeM = String(filterMapel).replace(/\\/g,'\\\\').replace(/'/g, "\\'");
                 body = crumb([crumbLink('Bank Soal', "window.loadManajemenSoal('semua')", 'fa-folder-tree'), crumbLink(`Kelas ${T}`, `window.loadManajemenSoal('${T}')`, 'fa-folder'), crumbHere(`<i class="fa-solid fa-folder-open mr-1"></i>${filterMapel}`)]) +
-                `<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div class="text-[11px] text-slate-400">${window.infoSkorFolder(filtered)}</div><div class="flex gap-2">${filtered.length ? `<button onclick="window.telusuriSoal(0)" class="${btnCls} bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"><i class="fa-solid fa-eye mr-1"></i> Telusuri Soal</button>` : ''}<button id="btn-hapus-soal" onclick="window.hapusSoalTerpilih()" class="hidden ${btnCls} bg-red-600 text-white"><i class="fa-solid fa-trash mr-1"></i> Hapus (<span id="count-soal-terpilih">0</span>)</button>${filtered.length ? `<button onclick="window.hapusSemuaSoalFolder()" class="${btnCls} bg-red-500/10 text-red-400 hover:bg-red-500/20"><i class="fa-solid fa-folder-minus mr-1"></i> Kosongkan folder</button>` : ''}</div></div>
+                `<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div class="text-[11px] text-slate-400">${window.infoSkorFolder(filtered)}</div><div class="flex gap-2">${filtered.length ? `<button onclick="window.telusuriSoal(0)" class="${btnCls} bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"><i class="fa-solid fa-eye mr-1"></i> Telusuri Soal</button><button onclick="window.exportSoalExcel(window.currentFilterTingkat, window.currentFilterMapel)" class="${btnCls} bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30"><i class="fa-solid fa-file-export mr-1"></i> Ekspor</button>` : ''}<button id="btn-hapus-soal" onclick="window.hapusSoalTerpilih()" class="hidden ${btnCls} bg-red-600 text-white"><i class="fa-solid fa-trash mr-1"></i> Hapus (<span id="count-soal-terpilih">0</span>)</button>${filtered.length ? `<button onclick="window.hapusSemuaSoalFolder()" class="${btnCls} bg-red-500/10 text-red-400 hover:bg-red-500/20"><i class="fa-solid fa-folder-minus mr-1"></i> Kosongkan folder</button>` : ''}</div></div>
                 <div class="glass-card-dark rounded-2xl overflow-hidden border border-slate-800"><div class="overflow-x-auto"><table class="w-full text-left text-[11px]"><thead><tr class="bg-slate-900 text-slate-400 font-bold uppercase tracking-wider"><th class="p-3 w-10"><input type="checkbox" onchange="window.toggleAllSoal(event)"></th><th class="p-3 w-10">#</th><th class="p-3">Pertanyaan</th><th class="p-3 text-center">Jenis</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody class="divide-y divide-slate-800">
                 ${filtered.length === 0 ? `<tr><td colspan="5" class="p-6 text-center text-slate-500 font-medium">Folder masih kosong. Klik “Tambah Soal” atau “Import”.</td></tr>` :
                 filtered.map((q, idx) => `<tr><td class="p-3"><input type="checkbox" class="chk-soal" value="${q.id}" onchange="window.updateBtnHapusSoalTerpilih()"></td><td class="p-3 text-slate-400 font-bold">${idx+1}</td><td class="p-3 text-slate-200 max-w-md truncate">${q.judul ? `<span class="text-slate-400">${window.arabBesar(window.escHtml(String(q.judul).replace(/\s+/g, ' ')), q.mapel)}</span> ` : ''}${window.arabBesar(q.pertanyaan, q.mapel)}</td><td class="p-3 text-center"><span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold uppercase text-[9px]">${q.jenis||'PG'}</span></td><td class="p-3 text-center space-x-1 whitespace-nowrap"><button onclick="window.viewSoalModal('${q.id}')" class="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 rounded text-[10px] transition"><i class="fa-solid fa-eye"></i></button><button onclick="window.openEditSoalModal('${q.id}')" class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded text-[10px] transition"><i class="fa-solid fa-pen"></i></button><button onclick="window.hapusSoal('${q.id}')" class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('')}
@@ -1463,6 +1463,31 @@
                 if (!sisa) window.tsTutup(); else window.telusuriSoal(idx);
                 window.showNotification('Soal nomor ' + no + ' dihapus.');
             });
+        };
+
+        /* ===== Ekspor soal ke Excel (format sama dengan template impor, jadi bisa diimpor kembali sebagai cadangan) ===== */
+        window.exportSoalExcel = function(tingkat, mapel) {
+            let list = (window.appData.soal || []).map((s, i) => ({ s, i }));
+            if (tingkat && tingkat !== 'semua') list = list.filter(x => String(x.s.tingkat) === String(tingkat));
+            if (mapel && mapel !== 'semua') list = list.filter(x => x.s.mapel === mapel);
+            if (!list.length) return window.showNotification('Tidak ada soal untuk diekspor.');
+            const L = (a, b) => String(a || '').localeCompare(String(b || ''), 'id', { numeric: true });
+            list.sort((a, b) => L(a.s.tingkat, b.s.tingkat) || L(a.s.mapel, b.s.mapel) || a.i - b.i);
+            const header = ['jenis', 'tingkat', 'mapel', 'judul', 'pertanyaan', 'pilihan_a', 'pilihan_b', 'pilihan_c', 'pilihan_d', 'kunci', 'skor'];
+            const rows = list.map(({ s }) => {
+                const jn = s.jenis || 'PG', bs = jn === 'BS';
+                return { jenis: jn, tingkat: String(s.tingkat), mapel: s.mapel, judul: s.judul || '', pertanyaan: s.pertanyaan || '',
+                    pilihan_a: bs ? '' : (s.pilihan_a || ''), pilihan_b: bs ? '' : (s.pilihan_b || ''), pilihan_c: bs ? '' : (s.pilihan_c || ''), pilihan_d: bs ? '' : (s.pilihan_d || ''),
+                    kunci: bs ? (window.kunciBS(s.kunci) === 'A' ? 'Benar' : 'Salah') : (jn === 'PGK' ? window.kunciList(s.kunci).join(',') : String(s.kunci || '').toUpperCase()), skor: window.skorSoal(s) };
+            });
+            const ws = XLSX.utils.json_to_sheet(rows, { header });
+            ws['!cols'] = [{ wch: 7 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 50 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 6 }];
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Soal');
+            const d = new Date(), pad = n => String(n).padStart(2, '0'), tgl = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+            const bersih = x => String(x).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
+            const nama = (mapel && mapel !== 'semua') ? 'Soal_' + bersih(mapel) + '_Kelas' + tingkat : ((tingkat && tingkat !== 'semua') ? 'Soal_Kelas' + tingkat : 'Soal_Semua');
+            XLSX.writeFile(wb, nama + '_' + tgl + '.xlsx');
+            window.showNotification('Berhasil mengekspor ' + rows.length + ' soal.');
         };
 
         /* kunci Benar/Salah: A = Benar, B = Salah (sama seperti form soal). Boleh ditulis kata BENAR / SALAH */
